@@ -21,7 +21,10 @@ config/        challenge.json – declarative challenge definitions.
 - **Incremental, budget-aware sync**: see README "Rate limits".
 - **Idempotent**: activities are upserted by id; re-syncing never double counts.
 - **Static hosting**: `exportStatic` renders every quarter/challenge view to JSON; the UI falls back from
-  `api/...` to `data/...` when no server answers. Secrets travel as one `STRAVA_STATE` bundle (`state-bundle.ts`).
+  `api/...` to `data/...` when no server answers. Credentials and tokens are one `StateBundle`
+  (`strava/state-bundle.ts`), encrypted with `state-crypto.ts` into `state.enc` on the `state` git branch.
+  `admin/members.ts` holds the guided `add-member`/`members` commands (works on a throwaway clone, never on
+  local `data/`); `mergeBundles` makes concurrent saves (CI token rotation vs. add-member) safe.
   See `docs/deployment.md`.
 : all activities are stored; `resolveConfig` picks the goal and the members active in a
   quarter (`joinedQuarter`/`leftQuarter`), and `aggregate`/`buildDetail` ignore everyone else. `SyncService`

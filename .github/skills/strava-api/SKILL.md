@@ -11,4 +11,4 @@ description: Strava API facts for this project (auth, tokens, scopes, activities
 - Activities: `GET /api/v3/athlete/activities?after=&before=&page=&per_page=200` (epoch seconds, max 200/page). Only returns the token owner's activities. Use `sport_type` (newer) over `type`.
 - Rate limit headers: `X-RateLimit-Limit` / `X-RateLimit-Usage` = `15min,day`. 429 when exceeded.
 - There is no public challenges API – totals are computed locally.
-- Never log or commit tokens; `.env` and `data/` are git-ignored. In CI they live only in the `STRAVA_STATE` Actions secret (see `docs/deployment.md`).
+- Never log or commit tokens; `.env` and `data/` are git-ignored. In git they exist only encrypted on the `state` branch (key: `STATE_KEY`); see `docs/deployment.md`.

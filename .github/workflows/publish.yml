@@ -12,16 +12,13 @@ concurrency:
   group: dashboard
   cancel-in-progress: false
 
-permissions:
-  contents: read
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # to commit the re-encrypted (rotated) tokens to the `state` branch
     env:
-      STRAVA_STATE: ${{ secrets.STRAVA_STATE }}
-      # Fine-grained PAT with "Secrets: read and write" on this repo, used to store rotated tokens.
-      GH_TOKEN: ${{ secrets.SECRETS_ADMIN_TOKEN }}
+      STATE_KEY: ${{ secrets.STATE_KEY }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -31,6 +28,21 @@ jobs:
       - run: npm ci
       - run: npm test
 
+      - name: Check setup
+        run: |
+          if [ -z "$STATE_KEY" ]; then
+            echo "::error::Secret STATE_KEY is missing. See docs/deployment.md, step 1."; exit 1
+          fi
+          if ! git ls-remote --exit-code --heads origin state > /dev/null; then
+            echo "::error::Branch 'state' does not exist yet. Run 'npm run add-member' on your computer first (docs/deployment.md, step 2)."; exit 1
+          fi
+
+      - name: Check out encrypted state
+        uses: actions/checkout@v7
+        with:
+          ref: state
+          path: state-branch
+
       # Activities are rebuildable from Strava, so a cache is enough (a lost cache just triggers a re-sync).
       - name: Restore activity cache
         uses: actions/cache/restore@v6
@@ -39,8 +51,8 @@ jobs:
           key: activities-${{ github.run_id }}
           restore-keys: activities-
 
-      - name: Import credentials and tokens
-        run: node dist/cli.js state-import
+      - name: Decrypt credentials and tokens
+        run: node dist/cli.js state-decrypt state-branch/state.enc
 
       - name: Sync from Strava
         id: sync
@@ -48,14 +60,21 @@ jobs:
         continue-on-error: true # one member without tokens must not block publishing the rest
 
       # Always persist, even after a partial failure: refresh tokens that already rotated are the only valid ones.
-      - name: Store rotated tokens
+      - name: Save rotated tokens
         if: always()
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::SECRETS_ADMIN_TOKEN is not set; rotated Strava tokens are NOT saved and the next run will fail."
-          else
-            node dist/cli.js state-export | gh secret set STRAVA_STATE --repo "$GITHUB_REPOSITORY"
-          fi
+          git -C state-branch config user.name "strava-dashboard"
+          git -C state-branch config user.email "noreply@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            node dist/cli.js state-save state-branch/state.enc
+            git -C state-branch add state.enc
+            if git -C state-branch diff --cached --quiet; then exit 0; fi
+            git -C state-branch commit -q -m "Rotate tokens"
+            if git -C state-branch push -q origin state; then exit 0; fi
+            # Someone (add-member) pushed meanwhile: take their file, state-save then merges our tokens into it.
+            git -C state-branch fetch -q origin state && git -C state-branch reset -q --hard origin/state
+          done
+          echo "::error::Could not save the rotated tokens"; exit 1
 
       - name: Save activity cache
         if: always()

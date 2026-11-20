@@ -1,19 +1,41 @@
 import * as path from 'node:path';
 import { createApp } from './app';
 import { exportStatic } from './services/static-export';
-import { exportState, importState } from './strava/state-bundle';
+import { addMember, decryptInto, memberStatus, requireStateKey, saveFrom } from './admin/members';
+import { loadConfig } from './infra/config';
+import { generateKey } from './strava/state-crypto';
+
+/** Commands that manage the encrypted shared state. They must run before createApp(), which reads data/ from disk. */
+async function runStateCommand(command: string | undefined, config: ReturnType<typeof loadConfig>): Promise<boolean> {
+  const file = process.argv[3];
+  switch (command) {
+    case 'state-key':
+      console.log(generateKey());
+      return true;
+    case 'state-decrypt':
+      if (!file) throw new Error('Usage: state-decrypt <state.enc>');
+      decryptInto(file, config.dataDir, requireStateKey());
+      console.log('Credentials and tokens decrypted into data/.');
+      return true;
+    case 'state-save':
+      if (!file) throw new Error('Usage: state-save <state.enc>');
+      saveFrom(file, config.dataDir, requireStateKey());
+      console.log('Credentials and tokens encrypted.');
+      return true;
+    case 'add-member':
+      await addMember(config);
+      return true;
+    case 'members':
+      memberStatus(config);
+      return true;
+    default:
+      return false;
+  }
+}
 
 async function main(): Promise<void> {
   const command = process.argv[2];
-
-  // Must run before createApp(), which reads the stores from disk.
-  if (command === 'state-import') {
-    const json = process.env.STRAVA_STATE;
-    if (!json) throw new Error('STRAVA_STATE is not set');
-    importState(path.join(process.cwd(), 'data'), json);
-    console.log('Credentials and tokens imported from STRAVA_STATE.');
-    return;
-  }
+  if (await runStateCommand(command, loadConfig())) return;
 
   const app = createApp();
 
@@ -35,9 +57,6 @@ async function main(): Promise<void> {
     const rl = app.rateLimit.snapshot();
     console.log(`rate limit usage: ${rl.usage15}/${rl.limit15} (15 min), ${rl.usageDay}/${rl.limitDay} (day)`);
     if (results.some((r) => r.error)) process.exitCode = 1;
-  } else if (command === 'state-export') {
-    // Prints secrets on purpose: pipe it, e.g. `| gh secret set STRAVA_STATE`.
-    process.stdout.write(exportState(app.config.dataDir));
   } else if (command === 'export') {
     const outDir = path.resolve(process.argv[3] ?? 'site/data');
     const files = exportStatic(app.dashboard, app.config.challenge, outDir);
@@ -52,7 +71,7 @@ async function main(): Promise<void> {
       for (const [i, e] of c.leaderboard.entries()) console.log(`  ${i + 1}. ${e.name}: ${e.total}${c.unit}`);
     }
   } else {
-    console.log('Usage: node dist/cli.js <auth [clientId clientSecret code]|sync|report [quarter e.g. 2026-Q3]|export [dir]|state-export|state-import>');
+    console.log('Usage: node dist/cli.js <auth [clientId clientSecret code]|sync|report [quarter e.g. 2026-Q3]|export [dir]|add-member|members|state-key|state-decrypt <file>|state-save <file>>');
     process.exitCode = 1;
   }
 }

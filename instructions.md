@@ -58,19 +58,17 @@ You're done. If you ever want to stop participating, click **Revoke access** in 
 ---
 
 ## For the admin
-For each member, add `{ "athleteId": <id>, "name": "<name>" }` to `config/challenge.json` (the athlete id is the
-number in the member's profile URL, `strava.com/athletes/<id>`), then run:
+Adding a member takes three steps (details and troubleshooting in [docs/deployment.md](docs/deployment.md)):
 
-```powershell
-npm run auth -- <clientId> <clientSecret> <code>
-npm run sync
-```
+1. Add `{ "athleteId": <id>, "name": "<name>" }` to `config/challenge.json` (the athlete id is the number in
+   the member's profile URL, `strava.com/athletes/<id>`), commit and push.
+2. Run `npm run add-member` and paste the member's **Client ID**, **Client Secret** and **redirect URL**.
+   It extracts the code, checks the permissions, exchanges it with Strava and stores everything encrypted.
+3. Run `npm run members` to see ✔ / ✘ for every member.
 
 When someone joins mid-year add `"joinedQuarter": "2027-Q1"`; when someone leaves add `"leftQuarter": "2026-Q4"`
 (the last quarter they count in) instead of deleting them. Add the new quarter's goal to `goalByQuarter`. See the
 README sections "Goals per quarter" and "Members joining and leaving".
 
-The credentials and tokens are stored per athlete in `data/` (git-ignored) locally. For the hosted dashboard,
-copy them into the `STRAVA_STATE` Actions secret afterwards (`node dist/cli.js state-export | gh secret set STRAVA_STATE`),
-see [docs/deployment.md](docs/deployment.md). Tokens refresh automatically.
-If a member's `code` expired ("Code exchange failed"), ask them to repeat step 2.
+Tokens refresh automatically. If a member's code expired ("Code exchange failed"), ask them to repeat step 2
+above and send a new redirect URL; run `add-member` again with it.

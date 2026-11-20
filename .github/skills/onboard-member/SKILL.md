@@ -1,0 +1,25 @@
+---
+name: onboard-member
+description: Add, re-authorize or check a member of the Strava challenge. Use when someone sends their Strava client id/secret/redirect URL, or when asked who is connected.
+---
+
+# Onboarding a member
+
+Facts: new Strava apps allow one athlete, so each member creates their own Strava API app (see `instructions.md`).
+Credentials and tokens live encrypted on the `state` branch; `STATE_KEY` (in `.env` and as Actions secret) is the key.
+
+## Steps
+1. Member sends: **Client ID**, **Client Secret**, **full redirect URL** (`http://localhost/?state=&code=...&scope=...`).
+2. Ensure they are in `config/challenge.json` (`athleteId`, `name`; optional `joinedQuarter`/`leftQuarter`); commit and push.
+3. Run `npm run add-member` and paste the three values. It parses the code, verifies scope `activity:read_all`,
+   exchanges the code, encrypts and pushes to `state`. It never touches local `data/`.
+4. Run `npm run members` to confirm ✔. The next hourly workflow run (or a manual run in the Actions tab) syncs them.
+
+## Pitfalls
+- Codes are single-use and expire in minutes: don't test a code anywhere else first.
+- Re-running `add-member` for the same person replaces their credentials (fix for revoked access / failed exchange).
+- Push rejected → state changed meanwhile; run again (safe).
+- Wrong `STATE_KEY` → "Cannot decrypt"; never regenerate the key unless all members will re-authorize.
+- Never paste secrets into issues, PRs or committed files.
+
+See `docs/deployment.md` for the full flow and troubleshooting table.

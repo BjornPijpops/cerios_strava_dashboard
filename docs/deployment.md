@@ -1,56 +1,74 @@
 # Hosting on GitHub Pages (GitHub Actions)
 
-GitHub Pages only serves static files, so the Node server does not run there. Instead, a scheduled workflow
-(`.github/workflows/publish.yml`, hourly + on every push to `main`) does the work and publishes the result:
+GitHub Pages only serves static files, so the Node server does not run there. Instead a scheduled workflow
+(`.github/workflows/publish.yml`, hourly + on every push to `main`) syncs Strava and publishes the result:
 
 ```
-Actions secrets ──► state-import ──► sync (Strava) ──► state-export ──► gh secret set STRAVA_STATE
-                                        │
-                                        └──► export (JSON per quarter/challenge) ──► GitHub Pages
+branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► re-encrypt rotated tokens ──► branch `state`
+                                              └──► export JSON per quarter/challenge ──► GitHub Pages
 ```
 
-**No secret ever lands in the repository or the published site.** Credentials and tokens exist only as an
-Actions secret; the site contains only the aggregated JSON under `data/` plus `index.html`.
-`.env` and `data/` stay git-ignored and are only for local use.
+## How secrets are handled
+- Members' Strava credentials and tokens are stored **AES-256-GCM encrypted** in one file (`state.enc`) on a
+  separate git branch called `state`. The `main` branch never contains them.
+- The only secret you manage is the encryption password `STATE_KEY`, stored as a GitHub Actions secret and
+  in your local `.env`. Without it `state.enc` is unreadable.
+- Strava **rotates refresh tokens**. After each sync the workflow encrypts the new ones back to the `state`
+  branch itself (using the built-in `GITHUB_TOKEN`; no personal access token needed).
+- The published site contains only aggregated activity data (see Privacy).
 
-## One-time setup
+> Use a **private repository** if you can. Encrypted data is safe as long as `STATE_KEY` stays secret and is
+> long and random (`npm run state-key` generates one), but a private repo adds a second layer.
 
-### 1. Enable Pages
-Repository → **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+## One-time setup (admin)
 
-### 2. Create the `STRAVA_STATE` secret
-Locally, after every member has authorized (see [instructions.md](../instructions.md)) and `npm run sync` works:
+1. **Create the key.**
+   ```powershell
+   npm run state-key
+   ```
+   Copy the output. Add it to `.env` as `STATE_KEY=<value>` and as a GitHub secret named `STATE_KEY`
+   (Settings → Secrets and variables → Actions → New repository secret). Store it in your password manager too.
+   If you lose it, every member has to authorize again.
+2. **Create the encrypted state.** Stop any locally running dashboard first (it would rotate your tokens
+   behind the workflow's back), then:
+   ```powershell
+   npm run add-member
+   ```
+   The first time, this creates the `state` branch from your own local `data/` (your account) together with the
+   first colleague you add, so have their three values ready (see "Adding a member").
+3. **Enable Pages**: Settings → Pages → Source: **GitHub Actions**.
+4. **Run it**: Actions tab → *Sync and publish dashboard* → *Run workflow*. The site URL is shown on the deploy job.
 
-```powershell
-npm run build
-node dist/cli.js state-export | gh secret set STRAVA_STATE
-```
-(or copy it to the clipboard with `node dist/cli.js state-export | clip` and paste it into **Settings → Secrets and variables → Actions →
-New repository secret**, name `STRAVA_STATE`). It is one JSON document with every member's Strava app
-credentials and tokens.
+## Adding a member (idiot-proof checklist)
+1. Send the member [instructions.md](../instructions.md). They send you three things: **Client ID**,
+   **Client Secret** and the **full redirect URL** (`http://localhost/?state=&code=...&scope=...`).
+2. Make sure the member is in `config/challenge.json` (`athleteId` + `name`), commit and push.
+3. Run, and paste the three values when asked:
+   ```powershell
+   npm run add-member
+   ```
+   The command extracts the code from the URL, checks the permission scope, exchanges the code with Strava,
+   encrypts, and pushes to the `state` branch. It tells you whether it worked and if the member is missing
+   in `config/challenge.json`. Nothing on your computer is modified, so you can do this at any moment and in
+   any order, even while the workflow runs. If a push is rejected, just run it again.
+4. Check who is connected:
+   ```powershell
+   npm run members
+   ```
+   Shows ✔ / ✘ for each member in `config/challenge.json`. The next hourly run picks up new members, or
+   trigger it from the Actions tab.
 
-### 3. Create `SECRETS_ADMIN_TOKEN`
-Strava **rotates refresh tokens**, so after each run the workflow must save the new ones back into
-`STRAVA_STATE`. The built-in `GITHUB_TOKEN` cannot write secrets, so create a fine-grained personal access token:
-
-- GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate**
-- Repository access: **only this repository**; Permissions → Repository → **Secrets: Read and write**
-- Add it as Actions secret `SECRETS_ADMIN_TOKEN`.
-
-Without it, the workflow still publishes but warns, and the next run fails once the old refresh token is replaced.
-
-### 4. Run it
-**Actions → Sync and publish dashboard → Run workflow**. The site URL is shown on the `deploy` job.
+Authorization codes are single-use and expire within minutes: add the member soon after receiving the URL.
+Re-running `add-member` for the same person simply replaces their credentials (use this when someone revokes
+access or you get "Code exchange failed").
 
 ## Day-to-day
-- **Adding a member:** member authorizes ([instructions.md](../instructions.md)); admin runs `npm run auth -- ...`
-  locally, then re-exports `STRAVA_STATE` (step 2) and adds the member to `config/challenge.json`.
-- **Changing config** (members, goals, tenure): edit `config/challenge.json` and push – this triggers a publish.
-- **Activities cache:** `data/activities.json` is kept in the Actions cache between runs. If it is evicted the next
-  run simply re-syncs the history from `firstQuarter` (a few requests per member).
-- **Local tokens vs. CI tokens:** because refresh tokens rotate, don't sync locally and in CI with the same
-  tokens at the same time; the older copy becomes invalid. Re-run `state-export` after local auth, or use
-  local runs only for testing with your own app.
+- **Changing config** (members, goals, tenure): edit `config/challenge.json` and push; this triggers a publish.
+- **Activities cache:** `data/activities.json` is kept in the Actions cache. If it is evicted the next run
+  simply re-syncs the history from `firstQuarter` (a few requests per member).
+- **Local testing:** `npm run sync` locally uses your local `data/`. Do not run a local server/sync with the same
+  accounts that CI uses; whichever runs second finds an outdated refresh token. Use `npm run add-member` for
+  admin tasks (it never touches local `data/`).
 
 ## Privacy
 The published JSON contains member names, activity names, sport types, heart rate and elevation. GitHub Pages
@@ -60,7 +78,11 @@ or trim the exported data in `src/services/static-export.ts`.
 ## Troubleshooting
 | Symptom | Cause |
 |---|---|
-| `STRAVA_STATE is not set` | Secret missing (step 2). |
-| `401` / `Token refresh failed` for everyone | Rotated tokens weren't saved (step 3) or a local sync rotated them. Re-export the state. |
-| One member `no tokens configured` | They are not in `STRAVA_STATE` yet; the others still publish. |
-| Site shows "Unexpected token" / empty | The workflow hasn't deployed yet, or Pages source isn't "GitHub Actions". |
+| `Secret STATE_KEY is missing` | Step 1: add it as an Actions secret. |
+| `Branch 'state' does not exist yet` | Step 2: run `npm run add-member` once. |
+| `Cannot decrypt ... wrong STATE_KEY` | The `.env` / secret key differs from the one that created the state. |
+| `STATE_KEY is not set` locally | Add `STATE_KEY=...` to `.env`. |
+| `Code exchange failed` | Code expired/used, or wrong client id/secret. Ask the member for a fresh URL. |
+| `did not grant activity:read_all` | Member unticked the private-activities box. Authorize again. |
+| `401` / `Token refresh failed` for one member | They revoked the app or the state was overwritten. Run `add-member` again. |
+| Member shows `no tokens configured` in the sync log | Not in the state yet: run `npm run members`. |

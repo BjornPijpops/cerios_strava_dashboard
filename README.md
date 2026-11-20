@@ -10,9 +10,11 @@ Zero runtime dependencies: Node.js ≥ 22 and TypeScript only.
 
 ```powershell
 npm install
-copy .env.example .env      # local use only; in CI secrets come from GitHub Actions (docs/deployment.md)
+copy .env.example .env      # local use only; in CI secrets come from the encrypted state branch (docs/deployment.md)
 npm run auth                # prints the consent URL (needs activity:read_all scope)
-npm run auth -- <clientId> <clientSecret> <code>   # exchange the code from the redirect URL (once per member)
+npm run auth -- <clientId> <clientSecret> <code>   # local-only: store a member's tokens in data/
+npm run add-member          # admin: guided, adds a member to the shared encrypted state (see docs/deployment.md)
+npm run members             # admin: shows who has authorized
 npm run sync                # fetch activities (incremental)
 npm run report              # console summary
 npm start                   # dashboard on http://localhost:3000
@@ -77,10 +79,12 @@ Strava allows 100 requests / 15 min and 1000 / day by default (the API reports y
 See [docs/architecture.md](docs/architecture.md).
 
 ## Hosting
-The recommended production setup is GitHub Actions + GitHub Pages: a scheduled workflow syncs Strava using
-secrets stored in the repo's **Actions secrets** and publishes a static site. See
-[docs/deployment.md](docs/deployment.md). `.env` is only for running locally.
+The recommended production setup is GitHub Actions + GitHub Pages: a scheduled workflow syncs Strava and
+publishes a static site. Credentials and tokens are stored encrypted on a `state` branch; the only secret you
+manage is `STATE_KEY`. Members are added with `npm run add-member` and checked with `npm run members`.
+See [docs/deployment.md](docs/deployment.md). `.env` is only for running locally.
 
 ## Security
-Secrets never go in the repository: in CI they live in Actions secrets (`STRAVA_STATE`, `SECRETS_ADMIN_TOKEN`),
-locally in `.env` and `data/`, which are git-ignored. The published site contains only aggregated activity data.
+Secrets never go in plain text into the repository: in git they exist only AES-256-GCM encrypted (`state` branch),
+the key `STATE_KEY` lives in Actions secrets and your local `.env`; `.env` and `data/` are git-ignored. The
+published site contains only aggregated activity data.
