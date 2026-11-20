@@ -19,6 +19,7 @@ Credentials and tokens live encrypted on the `state` branch; `STATE_KEY` (in `.e
 - Codes are single-use and expire in minutes: don't test a code anywhere else first.
 - Re-running `add-member` for the same person replaces their credentials (fix for revoked access / failed exchange).
 - Push rejected → state changed meanwhile; run again (safe).
+- Never run a local sync with the tokens CI uses: refresh tokens rotate, so the second one to run holds an invalid token. Recover with `npm run add-member`.
 - Wrong `STATE_KEY` → "Cannot decrypt"; never regenerate the key unless all members will re-authorize.
 - Never paste secrets into issues, PRs or committed files.
 
