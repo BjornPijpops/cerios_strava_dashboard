@@ -39,10 +39,18 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
 4. **Check the result**: Actions tab → *Sync and publish dashboard*. The site URL is shown on the deploy job.
 
 ## Adding a member (idiot-proof checklist)
-1. Send the member [instructions.md](../instructions.md). They send you three things: **Client ID**,
-   **Client Secret** and the **full redirect URL** (`http://localhost/?state=&code=...&scope=...`).
+1. Send the member [instructions.md](../instructions.md). They send you back exactly these **three values**:
+
+   | # | Value | Where the member finds it |
+   |---|---|---|
+   | 1 | **Client ID** | A number on their Strava API page, https://www.strava.com/settings/api |
+   | 2 | **Client Secret** | On the same page, hidden behind "Show" |
+   | 3 | **Redirect URL** | The full address from their browser's address bar after clicking "Authorize". The page shows an error, that is expected. It looks like `http://localhost/?state=&code=abc123...&scope=read,activity:read_all` |
+
+   You do **not** need their athlete ID (the command works it out). The redirect URL works once and expires
+   within minutes, so add the member soon after receiving it.
 2. Make sure the member is in `config/challenge.json` (`athleteId` + `name`), commit and push.
-3. Run, and paste the three values when asked:
+3. Run the command and paste the three values one by one when asked (in the order of the table):
    ```powershell
    npm run add-member
    ```
