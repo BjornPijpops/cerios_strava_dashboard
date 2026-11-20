@@ -23,8 +23,8 @@ jobs:
       # Fine-grained PAT with "Secrets: read and write" on this repo, used to store rotated tokens.
       GH_TOKEN: ${{ secrets.SECRETS_ADMIN_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -33,7 +33,7 @@ jobs:
 
       # Activities are rebuildable from Strava, so a cache is enough (a lost cache just triggers a re-sync).
       - name: Restore activity cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: data/activities.json
           key: activities-${{ github.run_id }}
@@ -59,7 +59,7 @@ jobs:
 
       - name: Save activity cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: data/activities.json
           key: activities-${{ github.run_id }}
@@ -70,7 +70,7 @@ jobs:
           cp public/index.html site/index.html
           touch site/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
@@ -89,4 +89,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
