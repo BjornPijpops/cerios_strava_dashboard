@@ -29,15 +29,14 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
    Copy the output. Add it to `.env` as `STATE_KEY=<value>` and as a GitHub secret named `STATE_KEY`
    (Settings → Secrets and variables → Actions → New repository secret). Store it in your password manager too.
    If you lose it, every member has to authorize again.
-2. **Create the encrypted state.** Stop any locally running dashboard first (it would rotate your tokens
-   behind the workflow's back), then:
+2. **Create the encrypted state** from your own account (no colleague needed). Stop any locally running dashboard first
+   (it would rotate your tokens behind the workflow's back), then:
    ```powershell
-   npm run add-member
+   npm run init-state
    ```
-   The first time, this creates the `state` branch from your own local `data/` (your account) together with the
-   first colleague you add, so have their three values ready (see "Adding a member").
+   This creates the `state` branch from your local `data/` and starts the workflow.
 3. **Enable Pages**: Settings → Pages → Source: **GitHub Actions**.
-4. **Run it**: Actions tab → *Sync and publish dashboard* → *Run workflow*. The site URL is shown on the deploy job.
+4. **Check the result**: Actions tab → *Sync and publish dashboard*. The site URL is shown on the deploy job.
 
 ## Adding a member (idiot-proof checklist)
 1. Send the member [instructions.md](../instructions.md). They send you three things: **Client ID**,
@@ -48,7 +47,7 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
    npm run add-member
    ```
    The command extracts the code from the URL, checks the permission scope, exchanges the code with Strava,
-   encrypts, and pushes to the `state` branch. It tells you whether it worked and if the member is missing
+   encrypts, pushes to the `state` branch and **starts the workflow** for you. It tells you whether it worked and if the member is missing
    in `config/challenge.json`. Nothing on your computer is modified, so you can do this at any moment and in
    any order, even while the workflow runs. If a push is rejected, just run it again.
 4. Check who is connected:
@@ -79,7 +78,7 @@ or trim the exported data in `src/services/static-export.ts`.
 | Symptom | Cause |
 |---|---|
 | `Secret STATE_KEY is missing` | Step 1: add it as an Actions secret. |
-| `Branch 'state' does not exist yet` | Step 2: run `npm run add-member` once. |
+| `Branch 'state' does not exist yet` | Step 2: run `npm run init-state` once. |
 | `Cannot decrypt ... wrong STATE_KEY` | The `.env` / secret key differs from the one that created the state. |
 | `STATE_KEY is not set` locally | Add `STATE_KEY=...` to `.env`. |
 | `Code exchange failed` | Code expired/used, or wrong client id/secret. Ask the member for a fresh URL. |

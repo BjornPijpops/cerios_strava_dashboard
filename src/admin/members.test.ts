@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { parseRedirect } from './members';
+import { parseRedirect, parseRepo } from './members';
+
+test('reads owner and repo from https and ssh remotes', () => {
+  assert.deepEqual(parseRepo('https://github.com/BjornPijpops/cerios_strava_dashboard.git'), { owner: 'BjornPijpops', repo: 'cerios_strava_dashboard' });
+  assert.deepEqual(parseRepo('git@github.com:a/b'), { owner: 'a', repo: 'b' });
+  assert.throws(() => parseRepo('https://example.com/x'), /owner\/repo/);
+});
 
 test('extracts code and scope from the redirect URL', () => {
   const r = parseRedirect('http://localhost/?state=&code=abc123&scope=read,activity:read_all');

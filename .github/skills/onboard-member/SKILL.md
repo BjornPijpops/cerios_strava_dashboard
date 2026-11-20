@@ -12,8 +12,8 @@ Credentials and tokens live encrypted on the `state` branch; `STATE_KEY` (in `.e
 1. Member sends: **Client ID**, **Client Secret**, **full redirect URL** (`http://localhost/?state=&code=...&scope=...`).
 2. Ensure they are in `config/challenge.json` (`athleteId`, `name`; optional `joinedQuarter`/`leftQuarter`); commit and push.
 3. Run `npm run add-member` and paste the three values. It parses the code, verifies scope `activity:read_all`,
-   exchanges the code, encrypts and pushes to `state`. It never touches local `data/`.
-4. Run `npm run members` to confirm ✔. The next hourly workflow run (or a manual run in the Actions tab) syncs them.
+   exchanges the code, encrypts, pushes to `state` and triggers the workflow (falls back to printing the Actions link). It never touches local `data/`. The very first time, run `npm run init-state` instead (creates `state` from the admin's own data/).
+4. Run `npm run members` to confirm ✔. The workflow it started syncs them within about a minute.
 
 ## Pitfalls
 - Codes are single-use and expire in minutes: don't test a code anywhere else first.

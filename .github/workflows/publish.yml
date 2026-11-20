@@ -34,7 +34,7 @@ jobs:
             echo "::error::Secret STATE_KEY is missing. See docs/deployment.md, step 1."; exit 1
           fi
           if ! git ls-remote --exit-code --heads origin state > /dev/null; then
-            echo "::error::Branch 'state' does not exist yet. Run 'npm run add-member' on your computer first (docs/deployment.md, step 2)."; exit 1
+            echo "::error::Branch 'state' does not exist yet. Run 'npm run init-state' on your computer first (docs/deployment.md, step 2)."; exit 1
           fi
 
       - name: Check out encrypted state

@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { createApp } from './app';
 import { exportStatic } from './services/static-export';
-import { addMember, decryptInto, memberStatus, requireStateKey, saveFrom } from './admin/members';
+import { addMember, decryptInto, initState, memberStatus, requireStateKey, saveFrom } from './admin/members';
 import { loadConfig } from './infra/config';
 import { generateKey } from './strava/state-crypto';
 
@@ -24,6 +24,9 @@ async function runStateCommand(command: string | undefined, config: ReturnType<t
       return true;
     case 'add-member':
       await addMember(config);
+      return true;
+    case 'init-state':
+      await initState(config);
       return true;
     case 'members':
       memberStatus(config);
@@ -71,7 +74,7 @@ async function main(): Promise<void> {
       for (const [i, e] of c.leaderboard.entries()) console.log(`  ${i + 1}. ${e.name}: ${e.total}${c.unit}`);
     }
   } else {
-    console.log('Usage: node dist/cli.js <auth [clientId clientSecret code]|sync|report [quarter e.g. 2026-Q3]|export [dir]|add-member|members|state-key|state-decrypt <file>|state-save <file>>');
+    console.log('Usage: node dist/cli.js <auth [clientId clientSecret code]|sync|report [quarter e.g. 2026-Q3]|export [dir]|init-state|add-member|members|state-key|state-decrypt <file>|state-save <file>>');
     process.exitCode = 1;
   }
 }

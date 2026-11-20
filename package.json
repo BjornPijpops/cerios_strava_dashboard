@@ -9,6 +9,7 @@
     "sync": "tsc && node dist/cli.js sync",
     "auth": "tsc && node dist/cli.js auth",
     "report": "tsc && node dist/cli.js report",
+    "init-state": "tsc && node dist/cli.js init-state",
     "add-member": "tsc && node dist/cli.js add-member",
     "members": "tsc && node dist/cli.js members",
     "state-key": "tsc && node dist/cli.js state-key",

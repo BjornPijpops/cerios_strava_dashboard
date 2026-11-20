@@ -63,7 +63,7 @@ Adding a member takes three steps (details and troubleshooting in [docs/deployme
 1. Add `{ "athleteId": <id>, "name": "<name>" }` to `config/challenge.json` (the athlete id is the number in
    the member's profile URL, `strava.com/athletes/<id>`), commit and push.
 2. Run `npm run add-member` and paste the member's **Client ID**, **Client Secret** and **redirect URL**.
-   It extracts the code, checks the permissions, exchanges it with Strava and stores everything encrypted.
+   It extracts the code, checks the permissions, exchanges it with Strava, stores everything encrypted and starts the dashboard update.
 3. Run `npm run members` to see ✔ / ✘ for every member.
 
 When someone joins mid-year add `"joinedQuarter": "2027-Q1"`; when someone leaves add `"leftQuarter": "2026-Q4"`

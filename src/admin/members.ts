@@ -95,6 +95,59 @@ class StateWorkspace {
 
 const remoteUrl = (root: string): string => git(root, 'remote', 'get-url', 'origin');
 
+export function parseRepo(url: string): { owner: string; repo: string } {
+  const m = /github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url.trim());
+  if (!m) throw new Error(`Cannot read the GitHub owner/repo from remote "${url}"`);
+  return { owner: m[1], repo: m[2] };
+}
+
+/**
+ * Starts the publish workflow with the credentials Git already has for github.com (no extra token to manage).
+ * Best effort: never throws, tells the admin what to do instead when it cannot.
+ */
+export async function triggerWorkflow(root: string): Promise<void> {
+  const { owner, repo } = parseRepo(remoteUrl(root));
+  const actionsUrl = `https://github.com/${owner}/${repo}/actions`;
+  try {
+    const creds = execFileSync('git', ['credential', 'fill'], {
+      cwd: root,
+      encoding: 'utf8',
+      input: 'protocol=https\nhost=github.com\n\n',
+      stdio: ['pipe', 'pipe', 'ignore'],
+    });
+    const token = /^password=(.+)$/m.exec(creds)?.[1];
+    if (!token) throw new Error('no stored GitHub login');
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/publish.yml/dispatches`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'strava-dashboard' },
+      body: JSON.stringify({ ref: 'main' }),
+    });
+    if (res.status !== 204) throw new Error(`GitHub answered ${res.status}`);
+    console.log(`▶ Workflow started: ${actionsUrl} (the dashboard updates in about a minute)`);
+  } catch {
+    console.log(`ℹ Could not start the workflow automatically. Start it manually: ${actionsUrl} → "Sync and publish dashboard" → "Run workflow".`);
+  }
+}
+
+/** Creates the shared state from this machine's own data/ (the admin's account). No colleague needed. */
+export async function initState(config: AppConfig): Promise<void> {
+  const key = requireStateKey();
+  const ws = new StateWorkspace(remoteUrl(config.root));
+  try {
+    if (!ws.created) {
+      console.log('The shared state already exists. Use "npm run add-member" to add people.');
+      return;
+    }
+    const state = ws.load(key, config.dataDir);
+    if (!Object.keys(state.tokens).length) throw new Error('data/ has no tokens yet. Authorize your own account first (npm run auth).');
+    ws.publish(key, 'Initialize state');
+    console.log(`✔ Shared state created with ${Object.keys(state.tokens).length} account(s). Do not run a local sync/server with these accounts from now on.`);
+  } finally {
+    ws.dispose();
+  }
+  await triggerWorkflow(config.root);
+}
+
 /** Guided flow: paste the member's three values, everything else (exchange, encrypt, commit, push) is automatic. */
 export async function addMember(config: AppConfig): Promise<void> {
   const key = requireStateKey();
@@ -127,6 +180,7 @@ export async function addMember(config: AppConfig): Promise<void> {
     rl.close();
     ws.dispose();
   }
+  await triggerWorkflow(config.root);
 }
 
 /** Shows which configured members have authorized, based on the shared state. */

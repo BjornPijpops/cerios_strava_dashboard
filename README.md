@@ -13,6 +13,7 @@ npm install
 copy .env.example .env      # local use only; in CI secrets come from the encrypted state branch (docs/deployment.md)
 npm run auth                # prints the consent URL (needs activity:read_all scope)
 npm run auth -- <clientId> <clientSecret> <code>   # local-only: store a member's tokens in data/
+npm run init-state           # admin, once: create the shared encrypted state from your own account
 npm run add-member          # admin: guided, adds a member to the shared encrypted state (see docs/deployment.md)
 npm run members             # admin: shows who has authorized
 npm run sync                # fetch activities (incremental)
@@ -81,7 +82,7 @@ See [docs/architecture.md](docs/architecture.md).
 ## Hosting
 The recommended production setup is GitHub Actions + GitHub Pages: a scheduled workflow syncs Strava and
 publishes a static site. Credentials and tokens are stored encrypted on a `state` branch; the only secret you
-manage is `STATE_KEY`. Members are added with `npm run add-member` and checked with `npm run members`.
+manage is `STATE_KEY`. The state is created once with `npm run init-state`; members are added with `npm run add-member` (which also starts the workflow) and checked with `npm run members`.
 See [docs/deployment.md](docs/deployment.md). `.env` is only for running locally.
 
 ## Security
