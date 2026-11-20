@@ -22,13 +22,12 @@
 
   header { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-light) 100%); color: #fff; padding: 2rem 1.5rem 5.5rem; }
   .wrap { max-width: 1150px; margin: 0 auto; }
-  header h1 { margin: 0; font-size: 1.9rem; letter-spacing: -.01em; }
-  header h1 span { color: var(--accent); }
+  header h1 { margin: 0; font-size: 1.9rem; letter-spacing: -.01em; display: flex; align-items: center; gap: .8rem; }
+  .logo { height: 2.4rem; width: auto; flex: none; }
+  #quarter-label { color: var(--accent); }
   .meta { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .9rem; }
   .pill { background: rgba(255,255,255,.12); border-radius: 999px; padding: .3rem .85rem; font-size: .82rem; }
-  .brandbar { background: #fff; border-bottom: 3px solid var(--accent); padding: .7rem 1.5rem; }
-  .logo { height: 48px; display: block; }
-  h1 .home-link { color: inherit; text-decoration: none; }
+    h1 .home-link { color: inherit; text-decoration: none; }
   h1 .home-link:hover { text-decoration: underline; }
   h1 .plain { color: inherit; }
   #quarter {
@@ -105,11 +104,10 @@
 </style>
 </head>
 <body>
-<div class="brandbar"><div class="wrap"><img class="logo" src="cerios-logo.png" alt="Cerios - about software quality"></div></div>
 <header>
   <div class="wrap">
     <a class="back" id="back" href="#/" hidden>← Overview</a>
-    <h1><a class="home-link" href="#/" id="title">Strava</a> <span id="quarter-label"></span></h1>
+    <h1><img class="logo" src="cerios-logo.png" alt="Cerios"><span><a class="home-link" href="#/" id="title">Strava</a> <span id="quarter-label"></span></span></h1>
     <div class="meta" id="meta"><span class="pill">Loading…</span></div>
   </div>
 </header>
