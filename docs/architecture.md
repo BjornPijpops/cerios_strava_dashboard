@@ -6,7 +6,8 @@ src/
   strava/      Strava adapter: StravaClient (ActivitySource), TokenStore, RateLimitRegistry (one RateLimitGuard per Strava app).
   infra/       Config loading, JSON-file persistence (ActivityRepository).
   services/    Use cases: SyncService (fetch → store), DashboardService (store → view model).
-  server/      HTTP entrypoint (/api/dashboard, /api/challenge/:id, both with ?quarter=YYYY-Qn; static page with #/[quarter/]challenge/:id routes).
+  server/      HTTP entrypoint: router.ts maps a URL to a response (testable without a socket; /api/dashboard, /api/challenge/:id, both with ?quarter=YYYY-Qn; static page with #/[quarter/]challenge/:id routes), main.ts wires it to node:http.
+  testing/     Shared test builders (fixtures.ts): temp folders, activities, challenge files, an in-memory repository.
   app.ts       Composition root – the only place concrete classes are wired.
   commands/    CLI as a Command registry (Command pattern): data-commands.ts, state-commands.ts, index.ts lists them all.
   admin/       Admin use cases with injected dependencies: onboarding.ts (init-state, add-member, members), StateWorkspace

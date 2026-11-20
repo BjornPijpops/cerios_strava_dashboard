@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { test } from 'node:test';
-import { loadEncrypted, mergeBundles, readBundle, saveEncrypted, StateBundle, writeBundle } from './state-bundle';
+import { decryptStateFile, loadEncrypted, mergeBundles, readBundle, saveEncrypted, StateBundle, updateStateFile, writeBundle } from './state-bundle';
 import { decrypt, encrypt, generateKey } from './state-crypto';
 
 const tmp = (): string => fs.mkdtempSync(path.join(os.tmpdir(), 'state-'));
@@ -33,6 +33,35 @@ test('bundle survives write -> read and encrypted save -> load', () => {
   const file = path.join(dir, 'nested', 'state.enc');
   saveEncrypted(file, 'k', readBundle(dir));
   assert.deepEqual(loadEncrypted(file, 'k'), bundle('1', 'r1'));
+});
+
+test('decryptStateFile writes the stored bundle into the data folder', () => {
+  const dir = tmp();
+  const file = path.join(dir, 'state.enc');
+  saveEncrypted(file, 'k', bundle('1', 'r1'));
+  const dataDir = path.join(dir, 'data');
+  decryptStateFile(file, dataDir, 'k');
+  assert.deepEqual(readBundle(dataDir), bundle('1', 'r1'));
+  assert.throws(() => decryptStateFile(file, dataDir, 'wrong'), /wrong STATE_KEY/);
+});
+
+test('updateStateFile keeps members added meanwhile and lets local tokens win', () => {
+  const dir = tmp();
+  const file = path.join(dir, 'state.enc');
+  saveEncrypted(file, 'k', mergeBundles(bundle('1', 'old'), bundle('2', 'added-meanwhile')));
+  const dataDir = path.join(dir, 'data');
+  writeBundle(dataDir, bundle('1', 'rotated'));
+  updateStateFile(file, dataDir, 'k');
+  const stored = loadEncrypted(file, 'k');
+  assert.equal(stored.tokens['1'].refreshToken, 'rotated');
+  assert.equal(stored.tokens['2'].refreshToken, 'added-meanwhile');
+});
+
+test('updateStateFile creates the file when none exists and tolerates an empty data folder', () => {
+  const dir = tmp();
+  const file = path.join(dir, 'new', 'state.enc');
+  updateStateFile(file, path.join(dir, 'empty-data'), 'k');
+  assert.deepEqual(loadEncrypted(file, 'k'), { credentials: {}, tokens: {} });
 });
 
 test('merge keeps members added elsewhere and prefers the overlay tokens', () => {
