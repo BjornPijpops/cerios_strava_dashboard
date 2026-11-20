@@ -1,11 +1,5 @@
 import { Activity, ChallengeConfig, ChallengeDefinition, ChallengeResult, Metric } from './types';
-
-const DAY_MS = 24 * 3600 * 1000;
-
-const round = (value: number, digits = 2): number => {
-  const f = 10 ** digits;
-  return Math.round(value * f) / f;
-};
+import { DAY_MS, round } from './units';
 
 const UNIT: Record<Metric, ChallengeResult['unit']> = {
   movingTime: 'h',

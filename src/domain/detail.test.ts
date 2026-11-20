@@ -67,3 +67,43 @@ test('only shows distance and pace for distance sports', () => {
   assert.equal(b.averageHeartrate, 130);
   assert.deepEqual(r.pace, { value: 5, unit: 'min/km' });
 });
+
+test('a challenge without matching activities gives an empty but valid detail', () => {
+  const d = buildDetail([], config, challenge, NOW);
+  assert.equal(d.biggest, null);
+  assert.deepEqual(d.recent, []);
+  assert.equal(d.activeDays, 0);
+  assert.equal(d.avgPerActivity, 0);
+  assert.deepEqual(d.members.map((m) => [m.name, m.total, m.best]), [['A', 0, 0], ['B', 0, 0]]);
+});
+
+test('members are counted with their own days, count and best activity', () => {
+  const d = buildDetail(
+    [act({}), act({ startDate: '2026-10-07T08:00:00Z', distanceM: 3000 }), act({ startDate: '2026-10-07T18:00:00Z', distanceM: 2000 })],
+    config,
+    challenge,
+    NOW,
+  );
+  assert.deepEqual(d.members[0], { athleteId: 1, name: 'A', total: 15, count: 3, activeDays: 2, best: 10 });
+});
+
+test('activities outside the period or from non-members are ignored', () => {
+  const d = buildDetail([act({ startDate: '2026-09-01T08:00:00Z' }), act({ athleteId: 99 })], config, challenge, NOW);
+  assert.equal(d.summary.activityCount, 0);
+  assert.deepEqual(d.recent, []);
+});
+
+test('an unknown challenge is a descriptive error, not a crash on undefined', () => {
+  assert.throws(() => buildDetail([], config, { ...challenge, id: 'nope' }, NOW), /Challenge "nope" is not part of the given config/);
+});
+
+test('without a goal there is no projection', () => {
+  const noGoal = { ...challenge, goal: undefined };
+  const d = buildDetail([act({})], { ...config, challenges: [noGoal] }, noGoal, NOW);
+  assert.equal(d.projectedTotal, undefined);
+});
+
+test('the projection assumes at least one elapsed day, so the first hours do not explode it', () => {
+  const d = buildDetail([act({ distanceM: 1000 })], config, challenge, Date.parse('2026-10-05T01:00:00Z'));
+  assert.equal(d.projectedTotal, 21); // 1 km per day over a 21-day period
+});

@@ -7,7 +7,7 @@ import { JsonCredentialStore } from '../strava/credential-store';
 import { JsonTokenStore } from '../strava/token-store';
 import { git } from './git';
 import { addMember, evaluateMembers, initState, memberStatus, OnboardingDeps } from './onboarding';
-import { StateWorkspace } from './state-workspace';
+import { SharedState, StateWorkspace } from './state-workspace';
 
 const KEY = 'test-key';
 
@@ -22,6 +22,7 @@ function setup(answers: string[], athleteId = 7) {
   const queue = [...answers];
   const deps: OnboardingDeps = {
     remoteUrl: remote,
+    openState: () => StateWorkspace.open(remote),
     stateKey: KEY,
     members: [
       { athleteId: 1, name: 'Admin' },
@@ -137,4 +138,38 @@ test('members prints a line per configured member', async () => {
   log.length = 0;
   memberStatus(deps);
   assert.deepEqual(log, ['✔ Admin (1)', '✔ Sofie (7)', '✘ Waiting (99)  - not authorized yet']);
+});
+
+function fakeState(isNew: boolean) {
+  const calls: string[] = [];
+  const state: SharedState = {
+    isNew,
+    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), 'fake-state-')),
+    load: (_key, seed) => {
+      calls.push('load');
+      return seed;
+    },
+    publish: () => calls.push('publish'),
+    dispose: () => calls.push('dispose'),
+  };
+  return { state, calls };
+}
+
+test('add-member disposes the state and publishes nothing when authorization fails', async () => {
+  const { deps } = setup(MEMBER_ANSWERS);
+  const { state, calls } = fakeState(false);
+  deps.openState = () => state;
+  deps.authorize = async () => {
+    throw new Error('Strava said no');
+  };
+  await assert.rejects(addMember(deps), /Strava said no/);
+  assert.deepEqual(calls, ['load', 'dispose']);
+});
+
+test('member-status disposes the state even when there is none yet', () => {
+  const { deps } = setup([]);
+  const { state, calls } = fakeState(true);
+  deps.openState = () => state;
+  assert.throws(() => memberStatus(deps), /npm run init-state/);
+  assert.deepEqual(calls, ['dispose']);
 });

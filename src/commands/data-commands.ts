@@ -1,4 +1,5 @@
 import * as path from 'node:path';
+import { JsonFolderWriter } from '../infra/json-folder-writer';
 import { exportStatic } from '../services/static-export';
 import { Command } from './command';
 
@@ -60,7 +61,7 @@ export const exportSite: Command = {
   description: 'Write the static JSON used by the hosted site (default site/data).',
   run({ args, app, config }) {
     const outDir = path.resolve(args[0] ?? 'site/data');
-    const files = exportStatic(app().dashboard, config.challenge, outDir);
+    const files = exportStatic(app().dashboard, config.challenge, new JsonFolderWriter(outDir));
     console.log(`Exported ${files} files to ${outDir}`);
   },
 };

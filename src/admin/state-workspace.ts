@@ -8,6 +8,17 @@ import { git } from './git';
 export const STATE_BRANCH = 'state';
 export const STATE_FILE = 'state.enc';
 
+/** What the onboarding use cases need from the shared state, so they can be tested without git. */
+export interface SharedState {
+  /** True when no state exists yet. */
+  readonly isNew: boolean;
+  /** Scratch folder with `credentials.json` / `tokens.json`. */
+  readonly dataDir: string;
+  load(key: string, seed: StateBundle): StateBundle;
+  publish(key: string, message: string): void;
+  dispose(): void;
+}
+
 /**
  * A throwaway clone of the `state` branch.
  *
@@ -15,7 +26,7 @@ export const STATE_FILE = 'state.enc';
  * never touch the local `data/` folder and cannot disturb a running dashboard. Lifecycle:
  * `open` -> `load` -> (modify files in `dataDir`) -> `publish` -> `dispose`.
  */
-export class StateWorkspace {
+export class StateWorkspace implements SharedState {
   /** Scratch folder with `credentials.json` / `tokens.json`, in the same layout the app uses for `data/`. */
   readonly dataDir: string;
 

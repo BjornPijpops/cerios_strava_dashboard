@@ -2,7 +2,7 @@ import { ChallengeFile } from '../domain/types';
 import { readBundle, StateBundle } from '../strava/state-bundle';
 import { WorkflowStart } from './github-actions';
 import { validateMemberInput } from './member-input';
-import { StateWorkspace } from './state-workspace';
+import { SharedState } from './state-workspace';
 
 /** Console interaction, injected so the use cases can be tested without a terminal. */
 export interface Io {
@@ -19,6 +19,8 @@ export type Authorizer = (
 
 export interface OnboardingDeps {
   remoteUrl: string;
+  /** Opens the shared state; the caller must dispose it. */
+  openState: () => SharedState;
   /** Encrypts/decrypts the shared state. */
   stateKey: string;
   members: ChallengeFile['members'];
@@ -41,7 +43,7 @@ async function startAndReport(deps: OnboardingDeps): Promise<void> {
 
 /** Adds (or re-authorizes) one member in the shared encrypted state, then starts the workflow. */
 export async function addMember(deps: OnboardingDeps): Promise<void> {
-  const workspace = StateWorkspace.open(deps.remoteUrl);
+  const workspace = deps.openState();
   try {
     if (workspace.isNew) deps.io.log('No shared state yet: creating it from your local data/ folder (your own account).');
     const before = workspace.load(deps.stateKey, readBundle(deps.localDataDir));
@@ -69,7 +71,7 @@ export async function addMember(deps: OnboardingDeps): Promise<void> {
 
 /** Creates the shared state from the admin's own local `data/`. Does nothing when it already exists. */
 export async function initState(deps: OnboardingDeps): Promise<void> {
-  const workspace = StateWorkspace.open(deps.remoteUrl);
+  const workspace = deps.openState();
   try {
     if (!workspace.isNew) {
       deps.io.log('The shared state already exists. Use "npm run add-member" to add people.');
@@ -107,8 +109,8 @@ export function evaluateMembers(members: ChallengeFile['members'], state: StateB
 }
 
 /** Prints who has authorized, based on the shared state. */
-export function memberStatus(deps: Pick<OnboardingDeps, 'remoteUrl' | 'stateKey' | 'members' | 'localDataDir' | 'io'>): void {
-  const workspace = StateWorkspace.open(deps.remoteUrl);
+export function memberStatus(deps: Pick<OnboardingDeps, 'openState' | 'stateKey' | 'members' | 'localDataDir' | 'io'>): void {
+  const workspace = deps.openState();
   try {
     if (workspace.isNew) throw new Error('No shared state exists yet. Run: npm run init-state');
     const { members, unknownIds } = evaluateMembers(deps.members, workspace.load(deps.stateKey, readBundle(deps.localDataDir)));

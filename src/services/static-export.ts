@@ -1,19 +1,20 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
 import { ChallengeFile } from '../domain/types';
 import { DashboardService } from './dashboard-service';
 
+/** Port for where exported documents go (a folder today; could be a bucket or an in-memory map). */
+export interface OutputWriter {
+  write(relativePath: string, body: unknown): void;
+}
+
 /**
- * Writes every dashboard view as a JSON file so the UI can be hosted statically (GitHub Pages):
+ * Writes every dashboard view as a JSON document so the UI can be hosted statically (GitHub Pages):
  *   dashboard/<quarter>.json            challenge/<quarter>/<challengeId>.json
- * `current` is an alias for the running quarter. Returns the number of files written.
+ * `current` is an alias for the running quarter. Returns the number of documents written.
  */
-export function exportStatic(service: DashboardService, file: ChallengeFile, outDir: string): number {
+export function exportStatic(service: DashboardService, file: ChallengeFile, output: OutputWriter): number {
   let count = 0;
-  const write = (rel: string, body: unknown): void => {
-    const target = path.join(outDir, rel);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, JSON.stringify(body));
+  const write = (relativePath: string, body: unknown): void => {
+    output.write(relativePath, body);
     count++;
   };
 

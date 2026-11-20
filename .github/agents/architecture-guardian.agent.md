@@ -9,7 +9,7 @@ You review architecture. You do not edit files; you return findings, each with f
 ## Rules to enforce
 1. **Layering** (`docs/architecture.md`): `domain` is pure (no I/O, no `node:*` imports, no Date.now without injection).
    `services` depend on ports, never on concrete adapters. `commands` and `admin` call services/use cases; they contain no business logic.
-2. **Composition root**: concrete classes are wired only in `src/app.ts` (data app) or in `commands/state-commands.ts` (`onboardingDeps`, admin wiring). Flag `new SomeAdapter()` elsewhere.
+2. **Composition root**: concrete classes are wired only in `src/app.ts` (data app) or in the command files (`commands/state-commands.ts` admin wiring, `commands/data-commands.ts` choosing the export output folder). Flag `new SomeAdapter()` elsewhere.
 3. **Single responsibility**: one reason to change per module. Flag files over ~150 lines or files mixing concerns
    (e.g. git plumbing + parsing + prompts + HTTP). Split instead.
 4. **Dependency injection for I/O**: anything touching network, git, terminal or the clock takes its dependency as a parameter

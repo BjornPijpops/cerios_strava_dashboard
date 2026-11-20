@@ -1,5 +1,6 @@
 import * as readline from 'node:readline/promises';
 import { remoteUrlOf, startPublishWorkflow, tokenFromGitCredentials } from '../admin/github-actions';
+import { StateWorkspace } from '../admin/state-workspace';
 import { addMember, initState, memberStatus, OnboardingDeps } from '../admin/onboarding';
 import { AppConfig } from '../infra/config';
 import { StravaClient } from '../strava/client';
@@ -25,8 +26,10 @@ function requireFileArg(args: string[], command: string): string {
 
 /** Production wiring of the onboarding use cases: real terminal, real Strava, real GitHub. */
 function onboardingDeps(config: AppConfig, rl?: readline.Interface): OnboardingDeps {
+  const remoteUrl = remoteUrlOf(config.root);
   return {
-    remoteUrl: remoteUrlOf(config.root),
+    remoteUrl,
+    openState: () => StateWorkspace.open(remoteUrl),
     stateKey: requireStateKey(),
     members: config.challenge.members,
     localDataDir: config.dataDir,
