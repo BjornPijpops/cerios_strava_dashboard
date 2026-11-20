@@ -56,7 +56,7 @@ export class JsonActivityRepository implements ActivityRepository {
 
   lastSyncedAt(): string | null {
     const all = Object.values(this.state.syncedAt).sort();
-    return all.length ? all[0] : null;
+    return all.length ? all[all.length - 1] : null;
   }
 
   private persist(): void {

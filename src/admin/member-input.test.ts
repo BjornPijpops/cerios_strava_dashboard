@@ -25,4 +25,5 @@ test('rejects a non-numeric client id, an empty secret and a missing private-act
   assert.throws(() => validateMemberInput('abc', 's', url), /Client ID must be a number/);
   assert.throws(() => validateMemberInput('1', ' ', url), /Client Secret/);
   assert.throws(() => validateMemberInput('1', 's', 'http://localhost/?code=c1&scope=read'), /activity:read_all/);
+  assert.throws(() => validateMemberInput('1', 's', 'http://localhost/?code=c1&scope=read,activity:read_all_extra'), /activity:read_all/);
 });

@@ -34,7 +34,7 @@ export function validateMemberInput(clientId: string, clientSecret: string, redi
   if (!/^\d+$/.test(id)) throw new Error('The Client ID must be a number (shown on https://www.strava.com/settings/api).');
   if (!secret) throw new Error('The Client Secret must not be empty.');
   const { code, scope } = parseRedirect(redirectUrl);
-  if (scope && !scope.includes(REQUIRED_SCOPE)) {
+  if (scope && !scope.split(/[,\s]+/).includes(REQUIRED_SCOPE)) {
     throw new Error(`The member did not grant "${REQUIRED_SCOPE}". Ask them to authorize again and tick "View data about your private activities".`);
   }
   return { clientId: id, clientSecret: secret, code };

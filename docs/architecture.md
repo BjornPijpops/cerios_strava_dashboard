@@ -29,7 +29,7 @@ config/        challenge.json – declarative challenge definitions.
   `admin/onboarding.ts` holds the guided `add-member`/`members` use cases (they work on a `StateWorkspace`,
   a throwaway clone, never on local `data/`); `mergeBundles` makes concurrent saves (CI token rotation vs. add-member) safe.
   See `docs/deployment.md`.
-: all activities are stored; `resolveConfig` picks the goal and the members active in a
+- **Tenure-aware history**: all activities are stored; `resolveConfig` picks the goal and the members active in a
   quarter (`joinedQuarter`/`leftQuarter`), and `aggregate`/`buildDetail` ignore everyone else. `SyncService`
   uses the same tenure to bound each member's fetch window.
 

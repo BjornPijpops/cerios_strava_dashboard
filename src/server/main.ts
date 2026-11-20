@@ -46,4 +46,5 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(app.config.port, () => console.log(`Dashboard on http://localhost:${app.config.port}`));
+// Loopback only: the local API has no authentication.
+server.listen(app.config.port, '127.0.0.1', () => console.log(`Dashboard on http://localhost:${app.config.port}`));

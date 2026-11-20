@@ -61,6 +61,10 @@ test('a rejected push explains how to recover', () => {
   }
 });
 
+test('a remote that cannot be read is an error, not an empty state', () => {
+  assert.throws(() => StateWorkspace.open(path.join(os.tmpdir(), 'does-not-exist-xyz')), /Could not read the "state" branch/);
+});
+
 test('dispose removes the scratch folder', () => {
   const ws = StateWorkspace.open(bareRemote());
   const dir = ws.dataDir;

@@ -52,7 +52,7 @@ and `security-reviewer` whenever credentials, state, git, CI or logging are touc
 - Windows PowerShell 5: no `&&`; write files without BOM (JSON configs must not start with a BOM).
 - Restart the local server by stopping the process that owns port 3000, then `node dist/server/main.js`.
 - The local server and CI must not use the same Strava tokens at the same time (refresh tokens rotate).
-- **Never run `npm run sync`, `npm start` or `node dist/cli.js sync` locally with real member/admin tokens now that the hosted workflow owns them.** A local run can rotate a refresh token and invalidate the one CI holds. Test with `npm test`, `npm run report` (reads local data only, no API calls) or `npm run export`. If a local sync is truly needed, warn the user first. Recovery when a member gets 401: `npm run add-member` with fresh credentials.
+- **Never run `npm run sync`, `npm start` or `node dist/cli.js sync` locally with real member/admin tokens now that the hosted workflow owns them.** A local run can rotate a refresh token and invalidate the one CI holds. Test with `npm test`, `npm run report` (reads local data only, no API calls) or `node dist/cli.js export <dir>`. If a local sync is truly needed, warn the user first. Recovery when a member gets 401: `npm run add-member` with fresh credentials.
 - Admin actions on shared state go through `npm run init-state`, `add-member` and `members`; they never touch local `data/`.
 
 ## Skills

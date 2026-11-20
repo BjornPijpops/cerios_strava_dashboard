@@ -8,7 +8,7 @@ You do **not** need to install anything or write code.
 
 ## What the dashboard gets
 - Read access to your activities (`activity:read_all`): sport type, date, duration and distance.
-- It only counts activities between the challenge start and end dates, and stores them on the admin's machine.
+- It only counts activities between the challenge start and end dates, and stores them in the dashboard's data store (the hosted workflow's cache, or `data/` locally).
 - You can revoke access any time at <https://www.strava.com/settings/apps>.
 
 ## Step 1 – Create your Strava API app

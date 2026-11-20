@@ -36,7 +36,13 @@ export class StateWorkspace {
     try {
       git(root, 'clone', '--quiet', '--branch', STATE_BRANCH, '--single-branch', remoteUrl, repoDir);
       return new StateWorkspace(root, repoDir, false);
-    } catch {
+    } catch (error) {
+      // Only "branch not found" means first run; auth or network problems must not look like an empty state.
+      const reason = error instanceof Error ? error.message : String(error);
+      if (!/remote branch .*not found/i.test(reason)) {
+        fs.rmSync(root, { recursive: true, force: true });
+        throw new Error(`Could not read the "${STATE_BRANCH}" branch from the repository. Check your git access and network.\n${reason}`);
+      }
       fs.mkdirSync(repoDir);
       git(repoDir, 'init', '--quiet');
       git(repoDir, 'checkout', '--quiet', '--orphan', STATE_BRANCH);
