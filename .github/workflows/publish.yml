@@ -86,7 +86,7 @@ jobs:
       - name: Build static site
         run: |
           node dist/cli.js export site/data
-          cp public/index.html site/index.html
+          cp public/index.html public/cerios-logo.png site/
           touch site/.nojekyll
 
       - uses: actions/upload-pages-artifact@v5
