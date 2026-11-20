@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { parseQuarter } from '../domain/quarters';
+import { quarterBounds } from '../domain/quarters';
 import { ChallengeFile } from '../domain/types';
 import { readJson } from './json-file';
 
@@ -29,11 +29,11 @@ function loadDotEnv(file: string): void {
 
 export function validateChallenge(c: ChallengeFile): void {
   if (!c.title) throw new Error('config/challenge.json: "title" is required');
-  parseQuarter(c.firstQuarter); // throws a descriptive error when invalid
+  quarterBounds(c.firstQuarter); // throws a descriptive error when invalid
   if (!c.members?.length) throw new Error('config/challenge.json: "members" must not be empty');
   for (const m of c.members) {
-    if (m.joinedQuarter) parseQuarter(m.joinedQuarter);
-    if (m.leftQuarter) parseQuarter(m.leftQuarter);
+    if (m.joinedQuarter) quarterBounds(m.joinedQuarter);
+    if (m.leftQuarter) quarterBounds(m.leftQuarter);
     if (m.joinedQuarter && m.leftQuarter && m.leftQuarter < m.joinedQuarter) {
       throw new Error(`Member ${m.name}: leftQuarter ${m.leftQuarter} is before joinedQuarter ${m.joinedQuarter}`);
     }
@@ -42,7 +42,7 @@ export function validateChallenge(c: ChallengeFile): void {
   for (const ch of c.challenges ?? []) {
     if (ids.has(ch.id)) throw new Error(`Duplicate challenge id "${ch.id}"`);
     ids.add(ch.id);
-    for (const q of Object.keys(ch.goalByQuarter ?? {})) parseQuarter(q);
+    for (const q of Object.keys(ch.goalByQuarter ?? {})) quarterBounds(q);
   }
 }
 

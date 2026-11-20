@@ -32,7 +32,7 @@ function onboardingDeps(config: AppConfig, rl?: readline.Interface): OnboardingD
     localDataDir: config.dataDir,
     io: { ask: (q) => (rl ? rl.question(q) : Promise.reject(new Error('No terminal available'))), log: console.log },
     authorize: (dataDir, credentials, code) =>
-      new StravaClient(new JsonCredentialStore(dataDir), new JsonTokenStore(dataDir), new RateLimitRegistry()).exchangeCode(credentials, code),
+      new StravaClient(new JsonCredentialStore(dataDir), new JsonTokenStore(dataDir), new RateLimitRegistry(Date.now), Date.now).exchangeCode(credentials, code),
     startWorkflow: (url) => startPublishWorkflow(url, { getToken: () => tokenFromGitCredentials(config.root), fetchFn: fetch }),
   };
 }

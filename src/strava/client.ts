@@ -33,6 +33,7 @@ export class StravaClient implements ActivitySource {
     private readonly credentials: CredentialStore,
     private readonly tokens: TokenStore,
     private readonly rateLimits: RateLimitRegistry,
+    private readonly now: () => number,
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
@@ -100,7 +101,7 @@ export class StravaClient implements ActivitySource {
   private async accessToken(athleteId: number, guard: RateLimitGuard): Promise<string> {
     const current = this.tokens.get(athleteId);
     if (!current) throw new Error(`No Strava tokens stored for athlete ${athleteId}`);
-    if (current.expiresAt - EXPIRY_MARGIN_SEC > Date.now() / 1000) return current.accessToken;
+    if (current.expiresAt - EXPIRY_MARGIN_SEC > this.now() / 1000) return current.accessToken;
     const credentials = this.credentials.get(athleteId);
     if (!credentials) throw new Error(`No Strava app credentials stored for athlete ${athleteId}`);
 

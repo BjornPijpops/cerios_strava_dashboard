@@ -15,7 +15,7 @@ export class DashboardService {
   constructor(
     private readonly repo: ActivityRepository,
     private readonly file: ChallengeFile,
-    private readonly now: () => number = Date.now,
+    private readonly now: () => number,
   ) {}
 
   quarters(): QuarterInfo[] {

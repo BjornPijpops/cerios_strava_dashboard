@@ -6,6 +6,9 @@ import { PAGE_SIZE, StravaClient, toActivity } from './client';
 import { RateLimitError, RateLimitRegistry } from './rate-limit';
 import { JsonTokenStore } from './token-store';
 
+const NOW_MS = Date.parse('2026-11-20T10:00:00Z');
+const NOW_SEC = NOW_MS / 1000;
+
 interface Call {
   url: string;
   init?: RequestInit;
@@ -28,12 +31,12 @@ function setup(responses: Array<Response | (() => Response)>, tokens?: { expires
     return typeof next === 'function' ? next() : next;
   }) as unknown as typeof fetch;
 
-  const client = new StravaClient(credentials, tokenStore, new RateLimitRegistry(), fetchFn);
+  const client = new StravaClient(credentials, tokenStore, new RateLimitRegistry(() => NOW_MS), () => NOW_MS, fetchFn);
   return { client, calls, tokenStore, credentials };
 }
 
-const FRESH = { expiresAt: 4_000_000_000 }; // far in the future: no refresh needed
-const EXPIRED = { expiresAt: 0 };
+const FRESH = { expiresAt: NOW_SEC + 3600 };
+const EXPIRED = { expiresAt: NOW_SEC - 1 };
 
 const wire = (id: number) => ({
   id,
@@ -133,4 +136,11 @@ test('a rejected code exchange stores nothing', async () => {
   const { client, tokenStore } = setup([new Response('invalid', { status: 400 })]);
   await assert.rejects(() => client.exchangeCode({ clientId: '10', clientSecret: 's' }, 'bad'), /Code exchange failed 400/);
   assert.equal(tokenStore.get(77), undefined);
+});
+
+test('a token that expires within the safety margin is refreshed before use', async () => {
+  const refreshed = ok({ access_token: 'new-access', refresh_token: 'new-refresh', expires_at: NOW_SEC + 21_600 });
+  const { client, calls } = setup([refreshed, ok([])], { expiresAt: NOW_SEC + 60 });
+  await client.fetchActivities(1, 0, 1);
+  assert.match(calls[0].url, /oauth\/token$/);
 });

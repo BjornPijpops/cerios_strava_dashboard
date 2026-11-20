@@ -1,4 +1,4 @@
-import { parseQuarter, trackingStartMs } from '../domain/quarters';
+import { quarterBounds, trackingStartMs } from '../domain/quarters';
 import { ChallengeFile, Member } from '../domain/types';
 import { ActivityRepository } from '../infra/activity-repository';
 import { ActivitySource } from '../strava/client';
@@ -23,7 +23,7 @@ export class SyncService {
     private readonly source: ActivitySource,
     private readonly repo: ActivityRepository,
     private readonly config: Pick<ChallengeFile, 'members' | 'firstQuarter'>,
-    private readonly now: () => number = Date.now,
+    private readonly now: () => number,
     private readonly canSync: (athleteId: number) => boolean = () => true,
   ) {}
 
@@ -48,9 +48,9 @@ export class SyncService {
   private windowOf(member: Member): { fromMs: number; toMs: number } {
     const globalFrom = trackingStartMs(this.config);
     const fromMs = member.joinedQuarter
-      ? Math.max(globalFrom, Date.parse(`${parseQuarter(member.joinedQuarter).start}T00:00:00Z`))
+      ? Math.max(globalFrom, Date.parse(`${quarterBounds(member.joinedQuarter).start}T00:00:00Z`))
       : globalFrom;
-    const toMs = member.leftQuarter ? Date.parse(`${parseQuarter(member.leftQuarter).end}T00:00:00Z`) + DAY_MS : Infinity;
+    const toMs = member.leftQuarter ? Date.parse(`${quarterBounds(member.leftQuarter).end}T00:00:00Z`) + DAY_MS : Infinity;
     return { fromMs, toMs };
   }
 

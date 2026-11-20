@@ -21,6 +21,8 @@ config/        challenge.json – declarative challenge definitions.
 - **Dependency inversion**: services depend on ports (`ActivitySource`, `ActivityRepository`, `TokenStore`);
   Strava and JSON files are adapters. Swap in SQLite or another provider without touching services.
 - **Pure core**: `aggregate(activities, config)` is a pure function; challenges are data, not code.
+- **Injected clock**: nothing outside the composition roots (`app.ts`, `commands/state-commands.ts`, `server/main.ts`) reads `Date.now`.
+  `RateLimitGuard`, `StravaClient`, the services and `parseQuarter`/`listQuarters` receive time as a parameter, so tests control it.
 - **Local store as source of truth**: the UI never calls Strava directly, so page views cost 0 API requests.
 - **Incremental, per-app budget-aware sync**: see README "Rate limits".
 - **Idempotent**: activities are upserted by id; re-syncing never double counts.

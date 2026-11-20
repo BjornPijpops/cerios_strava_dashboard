@@ -22,10 +22,10 @@ export function createApp(config: AppConfig = loadConfig()) {
   }
 
   const repo = new JsonActivityRepository(config.dataDir);
-  const rateLimit = new RateLimitRegistry();
-  const client = new StravaClient(credentials, tokens, rateLimit);
+  const rateLimit = new RateLimitRegistry(Date.now);
+  const client = new StravaClient(credentials, tokens, rateLimit, Date.now);
   const sync = new SyncService(client, repo, config.challenge, Date.now, (id) => !!tokens.get(id));
-  const dashboard = new DashboardService(repo, config.challenge);
+  const dashboard = new DashboardService(repo, config.challenge, Date.now);
   return { config, repo, rateLimit, client, sync, dashboard };
 }
 

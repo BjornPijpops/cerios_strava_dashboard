@@ -20,11 +20,16 @@ export interface RateLimitState {
 
 export class RateLimitGuard {
   private state: RateLimitState = { limit15: 100, limitDay: 1000, usage15: 0, usageDay: 0 };
-  private windowStart = Date.now();
+  private windowStart: number;
   private static readonly WINDOW_MS = 15 * 60 * 1000;
 
-  /** @param reserve requests kept free for other callers/manual use */
-  constructor(private readonly reserve = 5) {}
+  /**
+   * @param now clock in epoch ms, injected so the 15-minute window is testable
+   * @param reserve requests kept free for other callers/manual use
+   */
+  constructor(private readonly now: () => number, private readonly reserve = 5) {
+    this.windowStart = now();
+  }
 
   /** Throws RateLimitError if sending another request would eat into the reserve. */
   assertCanRequest(): void {
@@ -54,8 +59,8 @@ export class RateLimitGuard {
   }
 
   private rollWindow(): void {
-    if (Date.now() - this.windowStart >= RateLimitGuard.WINDOW_MS) {
-      this.windowStart = Date.now();
+    if (this.now() - this.windowStart >= RateLimitGuard.WINDOW_MS) {
+      this.windowStart = this.now();
       this.state.usage15 = 0;
     }
   }
@@ -68,18 +73,18 @@ export class RateLimitGuard {
 export class RateLimitRegistry {
   private readonly guards = new Map<string, RateLimitGuard>();
 
-  constructor(private readonly reserve = 5) {}
+  constructor(private readonly now: () => number, private readonly reserve = 5) {}
 
   forApp(clientId: string): RateLimitGuard {
     let guard = this.guards.get(clientId);
-    if (!guard) this.guards.set(clientId, (guard = new RateLimitGuard(this.reserve)));
+    if (!guard) this.guards.set(clientId, (guard = new RateLimitGuard(this.now, this.reserve)));
     return guard;
   }
 
   /** The most used app, which is what matters when judging whether a sync is close to a limit. */
   busiest(): RateLimitState {
     const all = [...this.guards.values()].map((g) => g.snapshot());
-    return all.sort((a, b) => b.usage15 / b.limit15 - a.usage15 / a.limit15)[0] ?? new RateLimitGuard().snapshot();
+    return all.sort((a, b) => b.usage15 / b.limit15 - a.usage15 / a.limit15)[0] ?? new RateLimitGuard(this.now, this.reserve).snapshot();
   }
 }
 
