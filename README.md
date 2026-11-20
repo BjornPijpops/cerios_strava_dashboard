@@ -1,0 +1,79 @@
+# Strava Challenge Dashboard
+
+Dashboard for a company-wide quarterly sport challenge. Strava's API has no "challenge" endpoint, so this
+project pulls each member's activities for a date range, stores them locally and aggregates them into
+configurable challenges (e.g. a 700 h group goal plus biking / walking / running / fitness leaderboards).
+
+Zero runtime dependencies: Node.js ≥ 22 and TypeScript only.
+
+## Quick start
+
+```powershell
+npm install
+copy .env.example .env      # optional: seed credentials for the admin's own app
+npm run auth                # prints the consent URL (needs activity:read_all scope)
+npm run auth -- <clientId> <clientSecret> <code>   # exchange the code from the redirect URL (once per member)
+npm run sync                # fetch activities (incremental)
+npm run report              # console summary
+npm start                   # dashboard on http://localhost:3000
+npm test
+```
+
+### Strava authentication in 30 seconds
+- Access tokens last **6 hours**; refresh tokens don't expire but **rotate** on each refresh. The app refreshes
+  automatically and persists the newest refresh token in `data/tokens.json`.
+- Reading activities needs scope `activity:read` (or `activity:read_all` for private ones). A token created
+  without it fails with `401 activity:read_permission missing` – re-run `npm run auth`.
+- The authorization `code` is single-use; the access token printed on the API settings page has only `read` scope.
+- **Each member needs their own Strava API app**: new apps are limited to 1 connected athlete (the owner).
+  Send members [instructions.md](instructions.md); credentials and tokens are stored per athlete.
+
+## Configuration
+`config/challenge.json` defines the `title`, the `firstQuarter` to track, the members and the challenges.
+A challenge has a `metric` (`movingTime` → hours, `elapsedTime` → hours, `distance` → km), the Strava
+`sportTypes` it counts (or `"*"`), an optional `goal`, and an optional `goalByQuarter` (e.g.
+`{ "2026-Q3": 500 }`) to override the goal for a specific quarter. Adding a challenge is a JSON-only change
+(see `.github/skills/add-challenge`).
+
+### Quarters
+Quarters are calendar quarters (UTC) derived automatically: the dashboard shows the **current** quarter and a
+dropdown lets you browse every quarter back to `firstQuarter`. Nothing needs to be done when a quarter ends –
+the next quarter appears by itself and the finished one stays browsable (marked "Completed"). All activities
+are kept in `data/activities.json`; quarters are only a view over them. Moving `firstQuarter` earlier
+backfills the missing history automatically on the next sync. Deep links: `#/2026-Q3`, `#/2026-Q3/challenge/running`.
+CLI: `npm run report -- 2026-Q3`.
+
+### Goals per quarter
+Each quarter can have a different target. Set `goal` as the default and override it per quarter:
+```json
+{ "id": "group", "name": "Group goal", "goal": 700,
+  "goalByQuarter": { "2026-Q1": 600, "2026-Q2": 650, "2026-Q3": 700 } }
+```
+Add a new entry at the start of each quarter; quarters without an entry use `goal`.
+
+### Members joining and leaving
+Every member can have an optional, inclusive tenure:
+```json
+{ "athleteId": 123, "name": "Sofie", "joinedQuarter": "2027-Q1", "leftQuarter": "2027-Q3" }
+```
+- No `joinedQuarter` = member from the start; no `leftQuarter` = still active.
+- A member only counts (totals, leaderboards, detail pages) in quarters inside their tenure, so finished
+  quarters keep their original results when someone leaves, and a newcomer doesn't affect earlier quarters.
+- Sync only fetches a joiner from their first quarter, and stops calling Strava for a leaver once their last
+  quarter is fully synced (saving rate limit).
+- To remove someone, set `leftQuarter` instead of deleting them, otherwise past quarters change.
+- `leftQuarter` before `joinedQuarter` is rejected at startup.
+
+## Rate limits
+Strava allows 100 requests / 15 min and 1000 / day by default (the API reports your real limits in the
+`X-RateLimit-*` headers). Safeguards:
+1. `RateLimitGuard` reads those headers and aborts when fewer than 5 requests remain.
+2. Syncs are incremental (last sync − 1 day), 200 activities per request.
+3. The web server syncs at most once per `SYNC_TTL_MINUTES` and never concurrently.
+4. One request per ~200 activities plus one token refresh per 6 h per member: 100 members ≈ 100–200 requests per full sync, so the sync stops early on a limit and resumes on the next run.
+
+## Architecture
+See [docs/architecture.md](docs/architecture.md).
+
+## Security
+`.env` and `data/` hold secrets and are git-ignored. Never commit them.

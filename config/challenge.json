@@ -1,0 +1,26 @@
+{
+  "title": "Cerios ATB Strava Challenge",
+  "firstQuarter": "2026-Q1",
+  "members": [
+    { "athleteId": 54018089, "name": "Bjorn" },
+    { "athleteId": 51771705, "name": "Benjamin" },
+    { "athleteId": 54164144, "name": "Chiara" },
+    { "athleteId": 174718813, "name": "Kristof" },
+    { "athleteId": 36266483, "name": "Nadine" },
+    { "athleteId": 43059595, "name": "Patrick" },
+    { "athleteId": 162136041, "name": "Petra" },
+    { "athleteId": 81275991, "name": "Rutger" },
+    { "athleteId": 72174226, "name": "Senne" },
+    { "athleteId": 105206980, "name": "Sofie" },
+    { "athleteId": 74225594, "name": "Tom" },
+    { "athleteId": 202935865, "name": "Jarno" },
+    { "athleteId": 200211187, "name": "Kenan" }
+  ],
+  "challenges": [
+    { "id": "group", "name": "Group goal", "metric": "movingTime", "sportTypes": "*", "goal": 700, "goalByQuarter": { "2026-Q1": 600, "2026-Q2": 650, "2026-Q3": 700 } },
+    { "id": "biking", "name": "Biking", "metric": "distance", "sportTypes": ["Ride", "VirtualRide"] },
+    { "id": "walking", "name": "Walking", "metric": "distance", "sportTypes": ["Hike", "Walk"] },
+    { "id": "running", "name": "Running", "metric": "distance", "sportTypes": ["Run", "VirtualRun"] },
+    { "id": "fitness", "name": "Fitness", "metric": "movingTime", "sportTypes": ["Crossfit", "Elliptical", "WeightTraining"] }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "strava_dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard for a company Strava challenge, built from the Strava activity API.",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test \"dist/**/*.test.js\"",
+    "sync": "tsc && node dist/cli.js sync",
+    "auth": "tsc && node dist/cli.js auth",
+    "report": "tsc && node dist/cli.js report",
+    "start": "tsc && node dist/server/main.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "typescript": "^6.0.3"
+  },
+  "private": true
+}
