@@ -36,6 +36,18 @@ so every change must leave the code, tests and docs in a state a stranger could 
 5. **Verify for real**: run the affected command or server (not only unit tests); check `/api/dashboard` for UI/server changes.
 6. Keep commit messages descriptive; include the trailer `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
 
+## Code quality bar (applies to everything you write)
+- A file reads top to bottom for a newcomer: no wall of unexplained constants or obscure one-liners at the top; comment the *why* of anything non-obvious.
+- One responsibility per module (~150 lines max, functions ~25 lines). Split instead of growing a file.
+- I/O (network, git, terminal, clock) is injected so it can be faked in tests.
+- CLI commands are `Command` objects registered in `src/commands/index.ts`; never an `if`/`switch` chain. Admin logic lives in `src/admin/*` as use cases with injected dependencies; `commands/` only wires.
+- Prefer a named pattern from `docs/architecture.md` over ad-hoc structure; extend it rather than bypass it.
+
+## Mandatory review before finishing
+Delegate to these read-only agents on your change and fix every finding (re-run until PASS):
+`architecture-guardian` (layering, patterns), `code-reviewer` (readability), `test-reviewer` (coverage), `docs-reviewer` (docs accuracy),
+and `security-reviewer` whenever credentials, state, git, CI or logging are touched.
+
 ## Environment notes
 - Windows PowerShell 5: no `&&`; write files without BOM (JSON configs must not start with a BOM).
 - Restart the local server by stopping the process that owns port 3000, then `node dist/server/main.js`.

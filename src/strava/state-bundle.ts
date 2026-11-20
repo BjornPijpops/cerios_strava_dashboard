@@ -49,3 +49,14 @@ export function saveEncrypted(file: string, key: string, bundle: StateBundle): v
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, encrypt(JSON.stringify(bundle), key));
 }
+
+/** CI: decrypts `file` into the app's data folder. */
+export function decryptStateFile(file: string, dataDir: string, key: string): void {
+  writeBundle(dataDir, loadEncrypted(file, key));
+}
+
+/** CI: encrypts the data folder into `file`, keeping members that were added to the file in the meantime. */
+export function updateStateFile(file: string, dataDir: string, key: string): void {
+  const stored = fs.existsSync(file) ? loadEncrypted(file, key) : { credentials: {}, tokens: {} };
+  saveEncrypted(file, key, mergeBundles(stored, readBundle(dataDir)));
+}

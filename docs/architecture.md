@@ -8,7 +8,10 @@ src/
   services/    Use cases: SyncService (fetch → store), DashboardService (store → view model).
   server/      HTTP entrypoint (/api/dashboard, /api/challenge/:id, both with ?quarter=YYYY-Qn; static page with #/[quarter/]challenge/:id routes).
   app.ts       Composition root – the only place concrete classes are wired.
-  cli.ts       auth | sync | report
+  commands/    CLI as a Command registry (Command pattern): data-commands.ts, state-commands.ts, index.ts lists them all.
+  admin/       Admin use cases with injected dependencies: onboarding.ts (init-state, add-member, members), StateWorkspace
+               (throwaway clone of the `state` branch), github-actions.ts (start workflow), member-input.ts (validation), git.ts.
+  cli.ts       Thin entry point: looks the command up in the registry and runs it.
 public/        Static dashboard (vanilla HTML/JS, no build step).
 config/        challenge.json – declarative challenge definitions.
 ```
@@ -23,14 +26,19 @@ config/        challenge.json – declarative challenge definitions.
 - **Static hosting**: `exportStatic` renders every quarter/challenge view to JSON; the UI falls back from
   `api/...` to `data/...` when no server answers. Credentials and tokens are one `StateBundle`
   (`strava/state-bundle.ts`), encrypted with `state-crypto.ts` into `state.enc` on the `state` git branch.
-  `admin/members.ts` holds the guided `add-member`/`members` commands (works on a throwaway clone, never on
-  local `data/`); `mergeBundles` makes concurrent saves (CI token rotation vs. add-member) safe.
+  `admin/onboarding.ts` holds the guided `add-member`/`members` use cases (they work on a `StateWorkspace`,
+  a throwaway clone, never on local `data/`); `mergeBundles` makes concurrent saves (CI token rotation vs. add-member) safe.
   See `docs/deployment.md`.
 : all activities are stored; `resolveConfig` picks the goal and the members active in a
   quarter (`joinedQuarter`/`leftQuarter`), and `aggregate`/`buildDetail` ignore everyone else. `SyncService`
   uses the same tenure to bound each member's fetch window.
 
+## Quality gates
+Changes are reviewed by the read-only agents in `.github/agents/`: `architecture-guardian`, `code-reviewer`,
+`test-reviewer`, `docs-reviewer` and `security-reviewer`; `dashboard-maintainer` runs them before finishing.
+
 ## Extending
+- New CLI command → write a `Command`, add it to `src/commands/index.ts` (a test checks every npm script maps to one).
 - New challenge → edit `config/challenge.json`.
 - New metric → add to `Metric`, `metricValue` and `UNIT` in `domain/`.
 - New data source → implement `ActivitySource`.

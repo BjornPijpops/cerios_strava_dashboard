@@ -28,3 +28,6 @@ export function createApp(config: AppConfig = loadConfig()) {
   const dashboard = new DashboardService(repo, config.challenge);
   return { config, repo, rateLimit, client, sync, dashboard };
 }
+
+/** The wired application, as returned by createApp(). */
+export type App = ReturnType<typeof createApp>;
