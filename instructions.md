@@ -43,7 +43,8 @@ You do **not** need to install anything or write code.
    http://localhost/?state=&code=abc123...&scope=read,activity:read_all
    ```
 
-   The `code` is single-use and expires quickly, so send it soon after.
+   The `code` is single-use and short-lived (Strava does not say how long, so assume a few minutes). Send the
+   address to the admin right away. If the admin says it failed, just repeat this step and send the new address.
 
 ## Step 3 – Send the admin these three things
 1. Client ID

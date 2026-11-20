@@ -16,7 +16,7 @@ Credentials and tokens live encrypted on the `state` branch; `STATE_KEY` (in `.e
 4. Run `npm run members` to confirm ✔. The workflow it started syncs them within about a minute.
 
 ## Pitfalls
-- Codes are single-use and expire in minutes: don't test a code anywhere else first.
+- Codes are single-use and short-lived (Strava does not document the lifetime; assume a few minutes): run `add-member` immediately, ask for a fresh URL on failure, and don't test a code anywhere else first.
 - Re-running `add-member` for the same person replaces their credentials (fix for revoked access / failed exchange).
 - Push rejected → state changed meanwhile; run again (safe).
 - Never run a local sync with the tokens CI uses: refresh tokens rotate, so the second one to run holds an invalid token. Recover with `npm run add-member`.

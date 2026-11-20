@@ -48,7 +48,8 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
    | 3 | **Redirect URL** | The full address from their browser's address bar after clicking "Authorize". The page shows an error, that is expected. It looks like `http://localhost/?state=&code=abc123...&scope=read,activity:read_all` |
 
    You do **not** need their athlete ID (the command works it out). The redirect URL works once and expires
-   within minutes, so add the member soon after receiving it.
+   after a short time (Strava does not document how long, so assume a few minutes): run `add-member` right away.
+   If it fails with "Code exchange failed", the member just authorizes again and sends a new URL.
 2. Make sure the member is in `config/challenge.json` (`athleteId` + `name`), commit and push.
 3. Run the command and paste the three values one by one when asked (in the order of the table):
    ```powershell
@@ -65,7 +66,8 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
    Shows ✔ / ✘ for each member in `config/challenge.json`. The next hourly run picks up new members, or
    trigger it from the Actions tab.
 
-Authorization codes are single-use and expire within minutes: add the member soon after receiving the URL.
+Authorization codes are single-use and short-lived (Strava does not document the exact time; assume a few minutes):
+run `add-member` right after receiving the URL, and ask for a fresh URL if it fails.
 Re-running `add-member` for the same person simply replaces their credentials (use this when someone revokes
 access or you get "Code exchange failed").
 
