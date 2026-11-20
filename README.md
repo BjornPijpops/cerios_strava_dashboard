@@ -69,12 +69,16 @@ Every member can have an optional, inclusive tenure:
 - `leftQuarter` before `joinedQuarter` is rejected at startup.
 
 ## Rate limits
-Strava allows 100 requests / 15 min and 1000 / day by default (the API reports your real limits in the
-`X-RateLimit-*` headers). Safeguards:
-1. `RateLimitGuard` reads those headers and aborts when fewer than 5 requests remain.
+Strava applies its limits (100 requests / 15 min and 1000 / day by default; your app's real values are in the
+`X-RateLimit-*` response headers) **per API application**. Because every member uses their own Strava app,
+each member has an independent budget and the members never compete for it. A normal sync uses only a few
+requests per member, so the limits are practically never reached. Safeguards, in case they are:
+1. `RateLimitRegistry` keeps one `RateLimitGuard` per app (client id). A guard reads the headers and stops
+   that app's requests when fewer than 5 remain. A limited member is skipped; the others still sync.
 2. Syncs are incremental (last sync − 1 day), 200 activities per request.
 3. The web server syncs at most once per `SYNC_TTL_MINUTES` and never concurrently.
-4. One request per ~200 activities plus one token refresh per 6 h per member: 100 members ≈ 100–200 requests per full sync, so the sync stops early on a limit and resumes on the next run.
+4. Per member a sync costs about one request per ~200 new activities plus one token refresh every 6 hours.
+   The first sync of a long history costs a bit more, which is still far below the limit.
 
 ## Architecture
 See [docs/architecture.md](docs/architecture.md).

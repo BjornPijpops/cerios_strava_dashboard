@@ -39,7 +39,6 @@ export class SyncService {
         results.push({ athleteId: member.athleteId, fetched: await this.syncMember(member) });
       } catch (e) {
         results.push({ athleteId: member.athleteId, fetched: 0, error: (e as Error).message });
-        if (e instanceof RateLimitError) break; // no point trying other members
       }
     }
     return results;

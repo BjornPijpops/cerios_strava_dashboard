@@ -6,7 +6,7 @@ import * as readline from 'node:readline/promises';
 import { AppConfig } from '../infra/config';
 import { StravaClient } from '../strava/client';
 import { JsonCredentialStore } from '../strava/credential-store';
-import { RateLimitGuard } from '../strava/rate-limit';
+import { RateLimitRegistry } from '../strava/rate-limit';
 import { loadEncrypted, mergeBundles, readBundle, saveEncrypted, StateBundle, writeBundle } from '../strava/state-bundle';
 import { JsonTokenStore } from '../strava/token-store';
 
@@ -165,7 +165,7 @@ export async function addMember(config: AppConfig): Promise<void> {
       throw new Error(`The member did not grant "${REQUIRED_SCOPE}". Ask them to authorize again and tick "View data about your private activities".`);
     }
 
-    const client = new StravaClient(new JsonCredentialStore(ws.dataDir), new JsonTokenStore(ws.dataDir), new RateLimitGuard());
+    const client = new StravaClient(new JsonCredentialStore(ws.dataDir), new JsonTokenStore(ws.dataDir), new RateLimitRegistry());
     const { athleteId } = await client.exchangeCode({ clientId, clientSecret }, redirect.code);
 
     const known = config.challenge.members.find((m) => m.athleteId === athleteId);

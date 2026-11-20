@@ -1,6 +1,6 @@
 import { Activity } from '../domain/types';
 import { CredentialStore, StravaCredentials } from './credential-store';
-import { RateLimitError, RateLimitGuard } from './rate-limit';
+import { RateLimitError, RateLimitGuard, RateLimitRegistry } from './rate-limit';
 import { TokenSet, TokenStore } from './token-store';
 
 const API = 'https://www.strava.com/api/v3';
@@ -32,7 +32,7 @@ export class StravaClient implements ActivitySource {
   constructor(
     private readonly credentials: CredentialStore,
     private readonly tokens: TokenStore,
-    private readonly rateLimit: RateLimitGuard,
+    private readonly rateLimits: RateLimitRegistry,
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
@@ -81,23 +81,30 @@ export class StravaClient implements ActivitySource {
   }
 
   private async get<T>(athleteId: number, pathAndQuery: string): Promise<T> {
-    const token = await this.accessToken(athleteId);
-    this.rateLimit.assertCanRequest();
+    const guard = this.guardFor(athleteId);
+    const token = await this.accessToken(athleteId, guard);
+    guard.assertCanRequest();
     const res = await this.fetchFn(`${API}${pathAndQuery}`, { headers: { Authorization: `Bearer ${token}` } });
-    this.rateLimit.record(res.headers);
+    guard.record(res.headers);
     if (res.status === 429) throw new RateLimitError('Strava returned 429 Too Many Requests');
     if (!res.ok) throw new Error(`Strava API ${res.status}: ${await res.text()}`);
     return (await res.json()) as T;
   }
 
-  private async accessToken(athleteId: number): Promise<string> {
+  private guardFor(athleteId: number): RateLimitGuard {
+    const credentials = this.credentials.get(athleteId);
+    if (!credentials) throw new Error(`No Strava app credentials stored for athlete ${athleteId}`);
+    return this.rateLimits.forApp(credentials.clientId);
+  }
+
+  private async accessToken(athleteId: number, guard: RateLimitGuard): Promise<string> {
     const current = this.tokens.get(athleteId);
     if (!current) throw new Error(`No Strava tokens stored for athlete ${athleteId}`);
     if (current.expiresAt - EXPIRY_MARGIN_SEC > Date.now() / 1000) return current.accessToken;
     const credentials = this.credentials.get(athleteId);
     if (!credentials) throw new Error(`No Strava app credentials stored for athlete ${athleteId}`);
 
-    this.rateLimit.assertCanRequest();
+    guard.assertCanRequest();
     const res = await this.fetchFn(OAUTH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

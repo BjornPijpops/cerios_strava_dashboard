@@ -61,6 +61,28 @@ export class RateLimitGuard {
   }
 }
 
+/**
+ * Strava applies limits per API application, and every member has their own app, so each client id
+ * gets its own guard: one member's usage never blocks another member.
+ */
+export class RateLimitRegistry {
+  private readonly guards = new Map<string, RateLimitGuard>();
+
+  constructor(private readonly reserve = 5) {}
+
+  forApp(clientId: string): RateLimitGuard {
+    let guard = this.guards.get(clientId);
+    if (!guard) this.guards.set(clientId, (guard = new RateLimitGuard(this.reserve)));
+    return guard;
+  }
+
+  /** The most used app, which is what matters when judging whether a sync is close to a limit. */
+  busiest(): RateLimitState {
+    const all = [...this.guards.values()].map((g) => g.snapshot());
+    return all.sort((a, b) => b.usage15 / b.limit15 - a.usage15 / a.limit15)[0] ?? new RateLimitGuard().snapshot();
+  }
+}
+
 function parsePair(value: string | null): [number, number] | undefined {
   if (!value) return undefined;
   const [a, b] = value.split(',').map(Number);

@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RateLimitError, RateLimitGuard } from './rate-limit';
+import { RateLimitError, RateLimitGuard, RateLimitRegistry } from './rate-limit';
+
+test('every Strava app has its own budget', () => {
+  const registry = new RateLimitRegistry(5);
+  registry.forApp('a').record(new Headers({ 'x-ratelimit-limit': '100,1000', 'x-ratelimit-usage': '99,10' }));
+  assert.throws(() => registry.forApp('a').assertCanRequest(), RateLimitError);
+  assert.doesNotThrow(() => registry.forApp('b').assertCanRequest());
+  assert.equal(registry.forApp('a'), registry.forApp('a'));
+  assert.equal(registry.busiest().usage15, 99);
+});
 
 test('blocks requests once the reserve is reached', () => {
   const guard = new RateLimitGuard(5);

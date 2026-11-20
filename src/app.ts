@@ -2,7 +2,7 @@ import { AppConfig, loadConfig } from './infra/config';
 import { JsonActivityRepository } from './infra/activity-repository';
 import { DashboardService } from './services/dashboard-service';
 import { SyncService } from './services/sync-service';
-import { RateLimitGuard } from './strava/rate-limit';
+import { RateLimitRegistry } from './strava/rate-limit';
 import { StravaClient } from './strava/client';
 import { JsonTokenStore } from './strava/token-store';
 import { JsonCredentialStore } from './strava/credential-store';
@@ -22,7 +22,7 @@ export function createApp(config: AppConfig = loadConfig()) {
   }
 
   const repo = new JsonActivityRepository(config.dataDir);
-  const rateLimit = new RateLimitGuard();
+  const rateLimit = new RateLimitRegistry();
   const client = new StravaClient(credentials, tokens, rateLimit);
   const sync = new SyncService(client, repo, config.challenge, Date.now, (id) => !!tokens.get(id));
   const dashboard = new DashboardService(repo, config.challenge);

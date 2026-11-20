@@ -9,7 +9,7 @@ so every change must leave the code, tests and docs in a state a stranger could 
 ## Architecture rules
 - Respect the layering in `docs/architecture.md`: `domain` is pure, adapters implement ports, wiring only in `app.ts`.
 - Challenges, goals per quarter and member tenure are **data** in `config/challenge.json`, not code.
-- Any code that calls Strava goes through `RateLimitGuard`; never add per-page-view API calls. Page views read the local store.
+- Any code that calls Strava goes through the per-app `RateLimitGuard` (via `RateLimitRegistry`; limits are per Strava app and every member has their own); never add per-page-view API calls. Page views read the local store.
 - Keep zero runtime dependencies unless clearly justified.
 - Prefer small, single-purpose modules and pure functions; follow existing patterns (ports/adapters, composition root).
 

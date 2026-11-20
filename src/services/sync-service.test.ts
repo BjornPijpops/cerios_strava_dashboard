@@ -46,18 +46,19 @@ test('backfills history when the stored sync does not cover the tracked range', 
   assert.equal(calls[1], (Date.parse(covered.at) - 24 * 3600 * 1000) / 1000);
 });
 
-test('stops after a rate limit error', async () => {
-  let n = 0;
+test('a rate-limited member does not stop the others (each member has their own Strava app)', async () => {
+  const seen: number[] = [];
   const source: ActivitySource = {
-    fetchActivities: async () => {
-      n++;
-      throw new RateLimitError('limit');
+    fetchActivities: async (id) => {
+      seen.push(id);
+      if (id === config.members[0].athleteId) throw new RateLimitError('limit');
+      return [];
     },
   };
   const results = await new SyncService(source, memoryRepo(), config, () => NOW).syncAll();
-  assert.equal(n, 1);
-  assert.equal(results.length, 1);
+  assert.equal(seen.length, config.members.length);
   assert.ok(results[0].error);
+  assert.ok(results.slice(1).every((r) => !r.error));
 });
 
 test('skips members who left, and starts joiners at their first quarter', async () => {

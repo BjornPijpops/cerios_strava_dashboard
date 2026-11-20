@@ -57,8 +57,8 @@ async function main(): Promise<void> {
     for (const r of results) {
       console.log(`athlete ${r.athleteId}: ${r.error ? `FAILED - ${r.error}` : `${r.fetched} activities fetched`}`);
     }
-    const rl = app.rateLimit.snapshot();
-    console.log(`rate limit usage: ${rl.usage15}/${rl.limit15} (15 min), ${rl.usageDay}/${rl.limitDay} (day)`);
+    const rl = app.rateLimit.busiest();
+    console.log(`rate limit usage (busiest app): ${rl.usage15}/${rl.limit15} (15 min), ${rl.usageDay}/${rl.limitDay} (day)`);
     if (results.some((r) => r.error)) process.exitCode = 1;
   } else if (command === 'export') {
     const outDir = path.resolve(process.argv[3] ?? 'site/data');
