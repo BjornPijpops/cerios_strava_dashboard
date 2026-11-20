@@ -1,0 +1,92 @@
+name: Sync and publish dashboard
+
+on:
+  schedule:
+    - cron: "17 * * * *" # hourly
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# One run at a time: parallel runs would race on the rotating Strava refresh tokens.
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      STRAVA_STATE: ${{ secrets.STRAVA_STATE }}
+      # Fine-grained PAT with "Secrets: read and write" on this repo, used to store rotated tokens.
+      GH_TOKEN: ${{ secrets.SECRETS_ADMIN_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      # Activities are rebuildable from Strava, so a cache is enough (a lost cache just triggers a re-sync).
+      - name: Restore activity cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/activities.json
+          key: activities-${{ github.run_id }}
+          restore-keys: activities-
+
+      - name: Import credentials and tokens
+        run: node dist/cli.js state-import
+
+      - name: Sync from Strava
+        id: sync
+        run: node dist/cli.js sync
+        continue-on-error: true # one member without tokens must not block publishing the rest
+
+      # Always persist, even after a partial failure: refresh tokens that already rotated are the only valid ones.
+      - name: Store rotated tokens
+        if: always()
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::SECRETS_ADMIN_TOKEN is not set; rotated Strava tokens are NOT saved and the next run will fail."
+          else
+            node dist/cli.js state-export | gh secret set STRAVA_STATE --repo "$GITHUB_REPOSITORY"
+          fi
+
+      - name: Save activity cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/activities.json
+          key: activities-${{ github.run_id }}
+
+      - name: Build static site
+        run: |
+          node dist/cli.js export site/data
+          cp public/index.html site/index.html
+          touch site/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Report sync problems
+        if: steps.sync.outcome == 'failure'
+        run: echo "::warning::Some members failed to sync, see the 'Sync from Strava' step."
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

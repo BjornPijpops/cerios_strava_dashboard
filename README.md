@@ -10,12 +10,13 @@ Zero runtime dependencies: Node.js ≥ 22 and TypeScript only.
 
 ```powershell
 npm install
-copy .env.example .env      # optional: seed credentials for the admin's own app
+copy .env.example .env      # local use only; in CI secrets come from GitHub Actions (docs/deployment.md)
 npm run auth                # prints the consent URL (needs activity:read_all scope)
 npm run auth -- <clientId> <clientSecret> <code>   # exchange the code from the redirect URL (once per member)
 npm run sync                # fetch activities (incremental)
 npm run report              # console summary
 npm start                   # dashboard on http://localhost:3000
+npm run build; node dist/cli.js export site/data   # static JSON export used for GitHub Pages
 npm test
 ```
 
@@ -75,5 +76,11 @@ Strava allows 100 requests / 15 min and 1000 / day by default (the API reports y
 ## Architecture
 See [docs/architecture.md](docs/architecture.md).
 
+## Hosting
+The recommended production setup is GitHub Actions + GitHub Pages: a scheduled workflow syncs Strava using
+secrets stored in the repo's **Actions secrets** and publishes a static site. See
+[docs/deployment.md](docs/deployment.md). `.env` is only for running locally.
+
 ## Security
-`.env` and `data/` hold secrets and are git-ignored. Never commit them.
+Secrets never go in the repository: in CI they live in Actions secrets (`STRAVA_STATE`, `SECRETS_ADMIN_TOKEN`),
+locally in `.env` and `data/`, which are git-ignored. The published site contains only aggregated activity data.

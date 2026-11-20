@@ -20,7 +20,10 @@ config/        challenge.json – declarative challenge definitions.
 - **Local store as source of truth**: the UI never calls Strava directly, so page views cost 0 API requests.
 - **Incremental, budget-aware sync**: see README "Rate limits".
 - **Idempotent**: activities are upserted by id; re-syncing never double counts.
-- **Quarters as views**: all activities are stored; `resolveConfig` picks the goal and the members active in a
+- **Static hosting**: `exportStatic` renders every quarter/challenge view to JSON; the UI falls back from
+  `api/...` to `data/...` when no server answers. Secrets travel as one `STRAVA_STATE` bundle (`state-bundle.ts`).
+  See `docs/deployment.md`.
+: all activities are stored; `resolveConfig` picks the goal and the members active in a
   quarter (`joinedQuarter`/`leftQuarter`), and `aggregate`/`buildDetail` ignore everyone else. `SyncService`
   uses the same tenure to bound each member's fetch window.
 

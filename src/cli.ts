@@ -1,7 +1,20 @@
+import * as path from 'node:path';
 import { createApp } from './app';
+import { exportStatic } from './services/static-export';
+import { exportState, importState } from './strava/state-bundle';
 
 async function main(): Promise<void> {
   const command = process.argv[2];
+
+  // Must run before createApp(), which reads the stores from disk.
+  if (command === 'state-import') {
+    const json = process.env.STRAVA_STATE;
+    if (!json) throw new Error('STRAVA_STATE is not set');
+    importState(path.join(process.cwd(), 'data'), json);
+    console.log('Credentials and tokens imported from STRAVA_STATE.');
+    return;
+  }
+
   const app = createApp();
 
   if (command === 'auth') {
@@ -22,6 +35,13 @@ async function main(): Promise<void> {
     const rl = app.rateLimit.snapshot();
     console.log(`rate limit usage: ${rl.usage15}/${rl.limit15} (15 min), ${rl.usageDay}/${rl.limitDay} (day)`);
     if (results.some((r) => r.error)) process.exitCode = 1;
+  } else if (command === 'state-export') {
+    // Prints secrets on purpose: pipe it, e.g. `| gh secret set STRAVA_STATE`.
+    process.stdout.write(exportState(app.config.dataDir));
+  } else if (command === 'export') {
+    const outDir = path.resolve(process.argv[3] ?? 'site/data');
+    const files = exportStatic(app.dashboard, app.config.challenge, outDir);
+    console.log(`Exported ${files} files to ${outDir}`);
   } else if (command === 'report') {
     const data = app.dashboard.build(process.argv[3]);
     if (!data) throw new Error(`Unknown quarter "${process.argv[3]}"`);
@@ -32,7 +52,7 @@ async function main(): Promise<void> {
       for (const [i, e] of c.leaderboard.entries()) console.log(`  ${i + 1}. ${e.name}: ${e.total}${c.unit}`);
     }
   } else {
-    console.log('Usage: node dist/cli.js <auth [clientId clientSecret code]|sync|report [quarter e.g. 2026-Q3]>');
+    console.log('Usage: node dist/cli.js <auth [clientId clientSecret code]|sync|report [quarter e.g. 2026-Q3]|export [dir]|state-export|state-import>');
     process.exitCode = 1;
   }
 }

@@ -221,11 +221,31 @@ document.addEventListener('change', (e) => {
   location.hash = hashFor(q, route.challenge);
 });
 
+// Served by the Node server (live API) or hosted statically (GitHub Pages: pre-exported JSON under data/).
+// URLs are relative so the site also works below a sub-path like /repo-name/.
+let staticMode = false;
+
 async function getJson(url) {
   const res = await fetch(url);
   const body = await res.json();
   if (!res.ok) throw new Error(body.error ?? res.statusText);
   return body;
+}
+
+async function loadView(kind, id) {
+  const q = route.quarter;
+  const live = kind === 'dashboard' ? 'api/dashboard' + qs() : 'api/challenge/' + encodeURIComponent(id) + qs();
+  const file = kind === 'dashboard'
+    ? `data/dashboard/${q ?? 'current'}.json`
+    : `data/challenge/${q ?? 'current'}/${encodeURIComponent(id)}.json`;
+  if (!staticMode) {
+    try { return await getJson(live); } catch (e) {
+      // A static host answers the API path with an HTML 404, which fails JSON parsing.
+      if (!(e instanceof SyntaxError)) throw e;
+      staticMode = true;
+    }
+  }
+  return getJson(file);
 }
 
 // ---- charts (dependency-free SVG) ----
@@ -292,14 +312,14 @@ function detailView(d) {
 
 async function showOverview() {
   $('back').hidden = true;
-  const d = await getJson('/api/dashboard' + qs());
+  const d = await loadView('dashboard');
   overview = { challenges: d.challenges, info: setHeader(d) };
   renderOverview();
 }
 
 async function showChallenge(id) {
   $('back').hidden = false;
-  const d = await getJson('/api/challenge/' + encodeURIComponent(id) + qs());
+  const d = await loadView('challenge', id);
   setHeader(d, `<span class="pill">${ICONS[id] ?? '🏅'} ${esc(d.summary.name)}</span>`);
   $('cards').innerHTML = detailView(d);
 }

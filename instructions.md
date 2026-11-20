@@ -70,5 +70,7 @@ When someone joins mid-year add `"joinedQuarter": "2027-Q1"`; when someone leave
 (the last quarter they count in) instead of deleting them. Add the new quarter's goal to `goalByQuarter`. See the
 README sections "Goals per quarter" and "Members joining and leaving".
 
-The credentials and tokens are stored per athlete in `data/` (git-ignored). Tokens refresh automatically.
+The credentials and tokens are stored per athlete in `data/` (git-ignored) locally. For the hosted dashboard,
+copy them into the `STRAVA_STATE` Actions secret afterwards (`node dist/cli.js state-export | gh secret set STRAVA_STATE`),
+see [docs/deployment.md](docs/deployment.md). Tokens refresh automatically.
 If a member's `code` expired ("Code exchange failed"), ask them to repeat step 2.
