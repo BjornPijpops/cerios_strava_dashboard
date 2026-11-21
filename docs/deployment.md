@@ -1,7 +1,7 @@
 # Hosting on GitHub Pages (GitHub Actions)
 
 GitHub Pages only serves static files, so the Node server does not run there. Instead a scheduled workflow
-(`.github/workflows/publish.yml`, hourly + on every push to `main`) syncs Strava and publishes the result:
+(`.github/workflows/publish.yml`, hourly, every 30 minutes with the optional trigger below, and on every push to `main`) syncs Strava and publishes the result:
 
 ```
 branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► re-encrypt rotated tokens ──► branch `state`
@@ -79,6 +79,50 @@ access or you get "Code exchange failed").
   accounts that CI uses; whichever runs second finds an outdated refresh token. Use `npm run add-member` for
   admin tasks (it never touches local `data/`).
 
+## Optional: reliable 30-minute refresh (Cloudflare Worker)
+GitHub's own `schedule` is best effort: runs are often delayed by hours and priority does not depend on how
+often you ask. A free Cloudflare Worker can start the workflow every 30 minutes instead. The hourly GitHub cron
+stays as a fallback, and the workflow's `concurrency` group makes overlapping runs harmless.
+
+The page is static, so the token must never be placed in it: it would be public. It lives only as a Worker secret.
+
+1. **Create a token.** GitHub → Settings → Developer settings → Personal access tokens → *Fine-grained tokens*.
+   Repository access: only this repository. Permission: *Actions: Read and write*, nothing else. Pick the longest
+   expiry and put a reminder in your calendar: when it expires the trigger silently stops and the dashboard
+   falls back to the slow GitHub schedule (stale, not broken).
+2. **Test the token** (expect `204 No Content` and a new run in the Actions tab):
+   ```powershell
+   $t = "<token>"
+   curl.exe -i -X POST -H "Authorization: Bearer $t" -H "Accept: application/vnd.github+json" -H "User-Agent: test" `
+     -d '{\"ref\":\"main\"}' https://api.github.com/repos/<owner>/<repo>/actions/workflows/publish.yml/dispatches
+   ```
+   `404` = the token cannot see the repository or lacks *Actions* permission, `401` = wrong token.
+3. **Create the Worker.** Cloudflare → Workers & Pages → *Create application* → *Start with Hello World!*
+   (a Worker, not Pages) → name it, deploy, then *Edit code* and paste:
+   ```js
+   export default {
+     async scheduled(event, env, ctx) {
+       const res = await fetch(
+         "https://api.github.com/repos/<owner>/<repo>/actions/workflows/publish.yml/dispatches",
+         {
+           method: "POST",
+           headers: {
+             Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+             Accept: "application/vnd.github+json",
+             "User-Agent": "strava-trigger",
+           },
+           body: JSON.stringify({ ref: "main" }),
+         },
+       );
+       if (res.status !== 204) throw new Error(`GitHub answered ${res.status}: ${await res.text()}`);
+     },
+   };
+   ```
+4. **Add the secret.** Worker → Settings → Variables and Secrets → type *Secret*, name `GITHUB_TOKEN`, value the token.
+5. **Add the schedule.** Worker → Settings → Trigger Events → *Cron Trigger* → `*/30 * * * *`.
+6. **Verify.** Adding the cron trigger fires a run right away. In GitHub → Actions you should see runs with event
+   `workflow_dispatch` about every 30 minutes (events `schedule` are GitHub's own cron). Errors from the Worker
+   show up in its Observability / Logs tab.
 ## Privacy
 The published JSON contains member names, activity names, sport types, heart rate and elevation. GitHub Pages
 sites are **public** on free plans (even for private repos). If that is a problem, use a plan with private Pages,
@@ -95,3 +139,5 @@ or trim the exported data in `src/services/static-export.ts`.
 | `did not grant activity:read_all` | Member unticked the private-activities box. Authorize again. |
 | `401` / `Token refresh failed` for one member | They revoked the app or the state was overwritten. Run `add-member` again. |
 | Member shows `no tokens configured` in the sync log | Not in the state yet: run `npm run members`. |
+| Runs only appear every few hours | GitHub's schedule is best effort. Set up the Cloudflare trigger above. |
+| Cloudflare trigger stopped | The GitHub token expired or lost access. Create a new one and update the Worker secret. |
