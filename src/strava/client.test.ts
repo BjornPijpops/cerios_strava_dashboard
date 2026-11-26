@@ -15,12 +15,12 @@ interface Call {
 }
 
 /** Builds a client over temp stores with a scripted fetch; every call is recorded. */
-function setup(responses: Array<Response | (() => Response)>, tokens?: { expiresAt: number }) {
+function setup(responses: Array<Response | (() => Response)>, tokens?: { expiresAt: number; scope?: string }) {
   const dir = tempDir('client-');
   const credentials = new JsonCredentialStore(dir);
   const tokenStore = new JsonTokenStore(dir);
   credentials.set(1, { clientId: '10', clientSecret: 'secret' });
-  if (tokens) tokenStore.set(1, { accessToken: 'old-access', refreshToken: 'old-refresh', expiresAt: tokens.expiresAt });
+  if (tokens) tokenStore.set(1, { accessToken: 'old-access', refreshToken: 'old-refresh', ...tokens });
 
   const calls: Call[] = [];
   const queue = [...responses];
@@ -124,12 +124,21 @@ test('stops before sending when the app budget is exhausted', async () => {
 test('exchanging a code stores credentials and tokens under the returned athlete', async () => {
   const exchanged = ok({ access_token: 'a', refresh_token: 'r', expires_at: 5, athlete: { id: 77 } });
   const { client, calls, tokenStore, credentials } = setup([exchanged]);
-  const result = await client.exchangeCode({ clientId: '10', clientSecret: 'secret' }, 'the-code');
+  const result = await client.exchangeCode({ clientId: '10', clientSecret: 'secret' }, 'the-code', 'read,activity:read');
   assert.equal(result.athleteId, 77);
   assert.match(String(calls[0].init?.body), /grant_type=authorization_code/);
   assert.match(String(calls[0].init?.body), /code=the-code/);
-  assert.deepEqual(tokenStore.get(77), { accessToken: 'a', refreshToken: 'r', expiresAt: 5 });
+  assert.deepEqual(tokenStore.get(77), { accessToken: 'a', refreshToken: 'r', expiresAt: 5, scope: 'read,activity:read' });
   assert.deepEqual(credentials.get(77), { clientId: '10', clientSecret: 'secret' });
+});
+
+test('a refresh keeps the scope recorded at authorization', async () => {
+  const { client, tokenStore } = setup(
+    [ok({ access_token: 'new-access', refresh_token: 'new-refresh', expires_at: 4_100_000_000 }), ok([])],
+    { ...EXPIRED, scope: 'read,activity:read' },
+  );
+  await client.fetchActivities(1, 0, 1);
+  assert.equal(tokenStore.get(1)?.scope, 'read,activity:read');
 });
 
 test('a rejected code exchange stores nothing', async () => {

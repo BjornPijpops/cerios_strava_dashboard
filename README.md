@@ -11,11 +11,11 @@ Zero runtime dependencies: Node.js ≥ 22 and TypeScript only.
 ```powershell
 npm install
 copy .env.example .env      # local use only; in CI secrets come from the encrypted state branch (docs/deployment.md)
-npm run auth                # prints the consent URL (needs activity:read_all scope)
+npm run auth                # prints the consent URL (activity:read_all: private activities too; add --public for activity:read)
 npm run auth -- <clientId> <clientSecret> <code>   # local-only: store a member's tokens in data/
 npm run init-state           # admin, once: create the shared encrypted state from your own account
 npm run add-member          # admin: guided, adds a member to the shared encrypted state (see docs/deployment.md)
-npm run members             # admin: shows who has authorized
+npm run members             # admin: shows who has authorized and with which scope
 npm run sync                # fetch activities (incremental)
 npm run report              # console summary
 npm start                   # dashboard on http://localhost:3000
@@ -26,8 +26,9 @@ npm test
 ### Strava authentication in 30 seconds
 - Access tokens last **6 hours**; refresh tokens don't expire but **rotate** on each refresh. The app refreshes
   automatically and persists the newest refresh token in `data/tokens.json`.
-- Reading activities needs scope `activity:read` (or `activity:read_all` for private ones). A token created
-  without it fails with `401 activity:read_permission missing` – re-run `npm run auth`.
+- Reading activities needs scope `activity:read` (public activities only) or `activity:read_all` (also private
+  ones). Both are accepted; `npm run members` shows which one each member granted. A token without either
+  fails with `401 activity:read_permission missing` – re-run `npm run auth`.
 - The authorization `code` is single-use; the access token printed on the API settings page has only `read` scope.
 - **Each member needs their own Strava API app**: new apps are limited to 1 connected athlete (the owner).
   Send members [instructions.md](instructions.md); credentials and tokens are stored per athlete.

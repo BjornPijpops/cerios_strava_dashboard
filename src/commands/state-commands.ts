@@ -34,8 +34,8 @@ function onboardingDeps(config: AppConfig, rl?: readline.Interface): OnboardingD
     members: config.challenge.members,
     localDataDir: config.dataDir,
     io: { ask: (q) => (rl ? rl.question(q) : Promise.reject(new Error('No terminal available'))), log: console.log },
-    authorize: (dataDir, credentials, code) =>
-      new StravaClient(new JsonCredentialStore(dataDir), new JsonTokenStore(dataDir), new RateLimitRegistry(Date.now), Date.now).exchangeCode(credentials, code),
+    authorize: (dataDir, credentials, code, scope) =>
+      new StravaClient(new JsonCredentialStore(dataDir), new JsonTokenStore(dataDir), new RateLimitRegistry(Date.now), Date.now).exchangeCode(credentials, code, scope),
     startWorkflow: (url) => startPublishWorkflow(url, { getToken: () => tokenFromGitCredentials(config.root), fetchFn: fetch }),
   };
 }

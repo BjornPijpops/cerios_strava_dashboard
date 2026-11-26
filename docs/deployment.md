@@ -55,7 +55,8 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
    ```powershell
    npm run add-member
    ```
-   The command extracts the code from the URL, checks the permission scope, exchanges the code with Strava,
+   The command extracts the code from the URL, checks the permission scope (`activity:read_all` = all activities, or
+   `activity:read` = public only, which is accepted with a warning), exchanges the code with Strava,
    encrypts, pushes to the `state` branch and **starts the workflow** for you. It tells you whether it worked and if the member is missing
    in `config/challenge.json`. Nothing on your computer is modified, so you can do this at any moment and in
    any order, even while the workflow runs. If a push is rejected, just run it again.
@@ -63,7 +64,9 @@ branch `state` (encrypted) ──► decrypt ──► sync (Strava) ──► r
    ```powershell
    npm run members
    ```
-   Shows ✔ / ✘ for each member in `config/challenge.json`. The next hourly run picks up new members, or
+   Shows ✔ / ✘ for each member in `config/challenge.json`, plus whether the token reads **all** activities
+   (`activity:read_all`), **public only** (`activity:read`) or is unknown (authorized before scopes were recorded;
+   re-run `add-member` to record it). The next hourly run picks up new members, or
    trigger it from the Actions tab.
 
 Authorization codes are single-use and short-lived (Strava does not document the exact time; assume a few minutes):
@@ -136,7 +139,8 @@ or trim the exported data in `src/services/static-export.ts`.
 | `Cannot decrypt ... wrong STATE_KEY` | The `.env` / secret key differs from the one that created the state. |
 | `STATE_KEY is not set` locally | Add `STATE_KEY=...` to `.env`. |
 | `Code exchange failed` | Code expired/used, or wrong client id/secret. Ask the member for a fresh URL. |
-| `did not grant activity:read_all` | Member unticked the private-activities box. Authorize again. |
+| `granted neither activity:read_all nor activity:read` | Member unticked "View data about your activities". Authorize again. |
+| `Public-only access` notice / "public activities only" in `npm run members` | Member unticked the private-activities box. Their private activities are not counted; they can authorize again with it ticked and you re-run `add-member`. |
 | `401` / `Token refresh failed` for one member | They revoked the app or the state was overwritten. Run `add-member` again. |
 | Member shows `no tokens configured` in the sync log | Not in the state yet: run `npm run members`. |
 | Runs only appear every few hours | GitHub's schedule is best effort. Set up the Cloudflare trigger above. |

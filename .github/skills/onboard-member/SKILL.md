@@ -11,13 +11,13 @@ Credentials and tokens live encrypted on the `state` branch; `STATE_KEY` (in `.e
 ## Steps
 1. Member sends: **Client ID**, **Client Secret**, **full redirect URL** (`http://localhost/?state=&code=...&scope=...`).
 2. Ensure they are in `config/challenge.json` (`athleteId`, `name`; optional `joinedQuarter`/`leftQuarter`); commit and push.
-3. Run `npm run add-member` and paste the three values. It parses the code, verifies scope `activity:read_all`,
-   exchanges the code, encrypts, pushes to `state` and triggers the workflow (falls back to printing the Actions link). It never touches local `data/`. The very first time, run `npm run init-state` instead (creates `state` from the admin's own data/).
-4. Run `npm run members` to confirm ✔. The workflow it started syncs them; check the Actions tab and the site for the result.
+3. Run `npm run add-member` and paste the three values. It parses the code, accepts scope `activity:read_all` (all activities) or `activity:read` (public only, with a warning) and rejects anything else,
+   exchanges the code, records the scope, encrypts, pushes to `state` and triggers the workflow (falls back to printing the Actions link). It never touches local `data/`. The very first time, run `npm run init-state` instead (creates `state` from the admin's own data/).
+4. Run `npm run members` to confirm ✔; it also shows per member whether they share all or only public activities. The workflow it started syncs them; check the Actions tab and the site for the result.
 
 ## Pitfalls
 - Codes are single-use and short-lived (Strava does not document the lifetime; assume a few minutes): run `add-member` immediately, ask for a fresh URL on failure, and don't test a code anywhere else first.
-- Re-running `add-member` for the same person replaces their credentials (fix for revoked access / failed exchange).
+- A stale/invalid redirect URL cannot be rescued by another scope: a new code is needed either way. their credentials (fix for revoked access / failed exchange).
 - Push rejected → state changed meanwhile; run again (safe).
 - Never run a local sync with the tokens CI uses: refresh tokens rotate, so the second one to run holds an invalid token. Recover with `npm run add-member`.
 - Wrong `STATE_KEY` → "Cannot decrypt"; never regenerate the key unless all members will re-authorize.

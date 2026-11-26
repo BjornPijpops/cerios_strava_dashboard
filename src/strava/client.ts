@@ -57,7 +57,7 @@ export class StravaClient implements ActivitySource {
    * One-time exchange of an OAuth authorization code for tokens. The athlete is only known after the
    * exchange, so credentials are stored under the returned athlete id.
    */
-  async exchangeCode(credentials: StravaCredentials, code: string): Promise<{ athleteId: number; tokens: TokenSet }> {
+  async exchangeCode(credentials: StravaCredentials, code: string, scope?: string): Promise<{ athleteId: number; tokens: TokenSet }> {
     const res = await this.fetchFn(OAUTH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -75,7 +75,12 @@ export class StravaClient implements ActivitySource {
       expires_at: number;
       athlete: { id: number };
     };
-    const tokens = { accessToken: body.access_token, refreshToken: body.refresh_token, expiresAt: body.expires_at };
+    const tokens: TokenSet = {
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token,
+      expiresAt: body.expires_at,
+      ...(scope ? { scope } : {}),
+    };
     this.credentials.set(body.athlete.id, credentials);
     this.tokens.set(body.athlete.id, tokens);
     return { athleteId: body.athlete.id, tokens };
@@ -122,6 +127,7 @@ export class StravaClient implements ActivitySource {
       accessToken: body.access_token,
       refreshToken: body.refresh_token,
       expiresAt: body.expires_at,
+      ...(current.scope ? { scope: current.scope } : {}),
     };
     this.tokens.set(athleteId, next);
     return next.accessToken;
