@@ -6,6 +6,8 @@ export interface TokenSet {
   refreshToken: string;
   /** Epoch seconds. */
   expiresAt: number;
+  /** Scope granted at authorization (e.g. `read,activity:read_all`); absent for tokens stored before this was tracked. */
+  scope?: string;
 }
 
 /** Strava rotates refresh tokens, so the latest one must be persisted per athlete. */

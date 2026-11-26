@@ -31,9 +31,9 @@ function setup(answers: string[], athleteId = 7) {
     ],
     localDataDir,
     io: { ask: async () => queue.shift() ?? '', log: (m) => log.push(m) },
-    authorize: async (dataDir, credentials) => {
+    authorize: async (dataDir, credentials, _code, scope) => {
       new JsonCredentialStore(dataDir).set(athleteId, credentials);
-      new JsonTokenStore(dataDir).set(athleteId, { accessToken: 'x', refreshToken: 'member-refresh', expiresAt: 2 });
+      new JsonTokenStore(dataDir).set(athleteId, { accessToken: 'x', refreshToken: 'member-refresh', expiresAt: 2, ...(scope ? { scope } : {}) });
       return { athleteId };
     },
     startWorkflow: async () => ({ started: true, actionsUrl: 'https://example/actions' }),
@@ -137,7 +137,16 @@ test('members prints a line per configured member', async () => {
   await addMember(deps);
   log.length = 0;
   memberStatus(deps);
-  assert.deepEqual(log, ['✔ Admin (1)', '✔ Sofie (7)', '✘ Waiting (99)  - not authorized yet']);
+  assert.deepEqual(log, ['✔ Admin (1)  - access unknown (re-authorize to record it)', '✔ Sofie (7)  - all activities', '✘ Waiting (99)  - not authorized yet']);
+});
+
+test('add-member accepts a public-only grant, says what is missing and members shows it', async () => {
+  const { deps, log } = setup(['123', 'member-secret', 'http://localhost/?code=c1&scope=read,activity:read']);
+  await addMember(deps);
+  assert.ok(log.some((l) => l.includes('Public-only access')));
+  log.length = 0;
+  memberStatus(deps);
+  assert.ok(log.includes('✔ Sofie (7)  - public activities only'));
 });
 
 function fakeState(isNew: boolean) {

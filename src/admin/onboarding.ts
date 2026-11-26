@@ -1,7 +1,7 @@
 import { ChallengeFile } from '../domain/types';
 import { readBundle, StateBundle } from '../strava/state-bundle';
 import { WorkflowStart } from './github-actions';
-import { validateMemberInput } from './member-input';
+import { accessFromScope, ActivityAccess, validateMemberInput } from './member-input';
 import { SharedState } from './state-workspace';
 
 /** Console interaction, injected so the use cases can be tested without a terminal. */
@@ -15,6 +15,7 @@ export type Authorizer = (
   dataDir: string,
   credentials: { clientId: string; clientSecret: string },
   code: string,
+  scope?: string,
 ) => Promise<{ athleteId: number }>;
 
 export interface OnboardingDeps {
@@ -53,13 +54,16 @@ export async function addMember(deps: OnboardingDeps): Promise<void> {
       await deps.io.ask("Member's Client Secret: "),
       await deps.io.ask('The full redirect URL (http://localhost/?...code=...): '),
     );
-    const { athleteId } = await deps.authorize(workspace.dataDir, input, input.code);
+    const { athleteId } = await deps.authorize(workspace.dataDir, input, input.code, input.scope);
 
     const known = deps.members.find((m) => m.athleteId === athleteId);
     const replaced = String(athleteId) in before.credentials;
     workspace.publish(deps.stateKey, `${replaced ? 'Update' : 'Add'} athlete ${athleteId}`);
 
     deps.io.log(`\n✔ ${known ? known.name : `Athlete ${athleteId}`} is ${replaced ? 're-authorized' : 'added'}.`);
+    if (accessFromScope(input.scope) === 'public') {
+      deps.io.log('ℹ Public-only access: private activities are not counted. To include them the member must authorize again with "View data about your private activities" ticked.');
+    }
     if (!known) {
       deps.io.log(`⚠ Athlete ${athleteId} is not in config/challenge.json yet. Add this to "members" and push:\n  { "athleteId": ${athleteId}, "name": "<first name>" }`);
     }
@@ -93,6 +97,8 @@ export interface MemberStatus {
   name: string;
   athleteId: number;
   authorized: boolean;
+  /** Which activities the token can read; undefined when unknown (token stored before scopes were tracked). */
+  access?: ActivityAccess;
 }
 
 /** Pure: which configured members have both credentials and tokens in the state, and which tokens are unknown. */
@@ -103,10 +109,14 @@ export function evaluateMembers(members: ChallengeFile['members'], state: StateB
       name: m.name,
       athleteId: m.athleteId,
       authorized: String(m.athleteId) in state.tokens && String(m.athleteId) in state.credentials,
+      access: accessFromScope(state.tokens[String(m.athleteId)]?.scope),
     })),
     unknownIds: Object.keys(state.tokens).filter((id) => !configured.has(id)),
   };
 }
+
+const accessLabel = (access: ActivityAccess | undefined): string =>
+  access === 'all' ? '  - all activities' : access === 'public' ? '  - public activities only' : '  - access unknown (re-authorize to record it)';
 
 /** Prints who has authorized, based on the shared state. */
 export function memberStatus(deps: Pick<OnboardingDeps, 'openState' | 'stateKey' | 'members' | 'localDataDir' | 'io'>): void {
@@ -114,7 +124,7 @@ export function memberStatus(deps: Pick<OnboardingDeps, 'openState' | 'stateKey'
   try {
     if (workspace.isNew) throw new Error('No shared state exists yet. Run: npm run init-state');
     const { members, unknownIds } = evaluateMembers(deps.members, workspace.load(deps.stateKey, readBundle(deps.localDataDir)));
-    for (const m of members) deps.io.log(`${m.authorized ? '✔' : '✘'} ${m.name} (${m.athleteId})${m.authorized ? '' : '  - not authorized yet'}`);
+    for (const m of members) deps.io.log(`${m.authorized ? '✔' : '✘'} ${m.name} (${m.athleteId})${m.authorized ? accessLabel(m.access) : '  - not authorized yet'}`);
     for (const id of unknownIds) deps.io.log(`? athlete ${id} has tokens but is not in config/challenge.json`);
   } finally {
     workspace.dispose();

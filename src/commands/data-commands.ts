@@ -1,25 +1,28 @@
 import * as path from 'node:path';
+import { SCOPE_ALL, SCOPE_PUBLIC } from '../admin/member-input';
 import { JsonFolderWriter } from '../infra/json-folder-writer';
 import { exportStatic } from '../services/static-export';
 import { Command } from './command';
 
 /** Commands that read or fetch the dashboard data held in `data/`. */
 
-const authorizeUrl = (clientId: string): string =>
-  `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=read,activity:read_all`;
+const authorizeUrl = (clientId: string, scope: string): string =>
+  `https://www.strava.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=${scope}`;
 
 export const auth: Command = {
   name: 'auth',
-  usage: '[clientId clientSecret code]',
-  description: "Local only: print the consent URL, or store a member's tokens in data/. Admins use add-member instead.",
-  async run({ args, config, app }) {
+  usage: '[--public] [clientId clientSecret code]',
+  description: "Local only: print the consent URL (--public: public activities only), or store a member's tokens in data/. Admins use add-member instead.",
+  async run({ args: rawArgs, config, app }) {
+    const publicOnly = rawArgs.includes('--public');
+    const args = rawArgs.filter((a) => a !== '--public');
     const [clientId, clientSecret, code] = args;
     if (clientId && clientSecret && code) {
       const { athleteId } = await app().client.exchangeCode({ clientId, clientSecret }, code);
       console.log(`Credentials and tokens stored for athlete ${athleteId}. Now run: npm run sync`);
       return;
     }
-    const url = authorizeUrl(clientId ?? config.clientId ?? '<CLIENT_ID>');
+    const url = authorizeUrl(clientId ?? config.clientId ?? '<CLIENT_ID>', publicOnly ? `read,${SCOPE_PUBLIC}` : `read,${SCOPE_ALL}`);
     console.log(`1. Open:\n   ${url}\n2. Approve, then copy the "code" parameter from the (failing) localhost redirect URL.\n3. Run: npm run auth -- <clientId> <clientSecret> <code>`);
   },
 };

@@ -7,7 +7,10 @@ challenge admin.
 You do **not** need to install anything or write code.
 
 ## What the dashboard gets
-- Read access to your activities (`activity:read_all`): sport type, date, duration and distance.
+- Read access to your activities: sport type, date, duration and distance. By default this includes your
+  **private** activities (`activity:read_all`). On the Strava consent page you can untick
+  "View data about your private activities"; the dashboard then only sees your **public** activities
+  (`activity:read`), so private ones are not counted.
 - It only counts activities between the challenge start and end dates, and stores them in the dashboard's data store (the hosted workflow's cache, or `data/` locally).
 - You can revoke access any time at <https://www.strava.com/settings/apps>.
 
@@ -35,7 +38,8 @@ You do **not** need to install anything or write code.
    ```
 
 2. Open it in your browser and click **Authorize**. Keep `View data about your activities` checked,
-   otherwise the dashboard cannot read them.
+   otherwise the dashboard cannot read them. Keep `View data about your private activities` checked too if
+   private activities should count (leave it unticked and only public ones are counted).
 3. Your browser goes to a page that **fails to load** (`This site can't be reached`). That is expected.
    Copy the **full address** from the address bar. It looks like:
 
