@@ -44,9 +44,19 @@ export function memoryRepo(initial: Record<number, SyncMarker> = {}): ActivityRe
   return {
     stored,
     upsertMany: (a) => void stored.push(...a),
+    replaceRange: (athleteId, afterSec, beforeSec, a) => {
+      const kept = stored.filter((s) => {
+        const startSec = Date.parse(s.startDate) / 1000;
+        return !(s.athleteId === athleteId && startSec > afterSec && startSec < beforeSec);
+      });
+      stored.splice(0, stored.length, ...kept, ...a);
+    },
     all: () => stored,
     getSync: (id) => synced[id] ?? null,
-    setSync: (id, marker) => void (synced[id] = marker),
+    setSync: (id, marker) => {
+      const fullAt = marker.fullAt ?? synced[id]?.fullAt;
+      synced[id] = { ...marker, ...(fullAt ? { fullAt } : {}) };
+    },
     lastSyncedAt: () => null,
   };
 }

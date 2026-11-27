@@ -29,6 +29,32 @@ test('sync markers round-trip and are null for unknown athletes', () => {
   assert.deepEqual(repo.getSync(1), { at: '2026-01-01T00:00:00Z', from: '2025-10-01T00:00:00Z' });
 });
 
+test('replaceRange swaps one athlete\'s activities inside the range and nothing else', () => {
+  const dir = tempDir();
+  const repo = new JsonActivityRepository(dir);
+  const at = (id: number, athleteId: number, startDate: string, name: string) => ({ id, athleteId, startDate, name }) as unknown as Activity;
+  repo.upsertMany([
+    at(1, 1, '2026-11-02T08:00:00Z', 'old'),
+    at(2, 1, '2026-08-02T08:00:00Z', 'before range'),
+    at(3, 2, '2026-11-02T08:00:00Z', 'other athlete'),
+    at(4, 1, '2026-10-01T00:00:00Z', 'exactly on the boundary'),
+  ]);
+  const after = Date.parse('2026-10-01T00:00:00Z') / 1000;
+  const before = Date.parse('2026-12-01T00:00:00Z') / 1000;
+  repo.replaceRange(1, after, before, [at(5, 1, '2026-11-05T08:00:00Z', 'new')]);
+  assert.deepEqual(new JsonActivityRepository(dir).all().map((a) => a.name).sort(), ['before range', 'exactly on the boundary', 'new', 'other athlete']);
+});
+
+test('the full refresh time round-trips, survives later markers without it, and is absent for old data', () => {
+  const dir = tempDir();
+  const repo = new JsonActivityRepository(dir);
+  repo.setSync(1, { at: '2026-01-01T00:00:00Z', from: null });
+  assert.equal(repo.getSync(1)?.fullAt, undefined);
+  repo.setSync(1, { at: '2026-01-02T00:00:00Z', from: null, fullAt: '2026-01-02T00:00:00Z' });
+  repo.setSync(1, { at: '2026-01-03T00:00:00Z', from: null });
+  assert.equal(new JsonActivityRepository(dir).getSync(1)?.fullAt, '2026-01-02T00:00:00Z');
+});
+
 test('lastSyncedAt is the most recent sync of any member, or null before any sync', () => {
   const repo = new JsonActivityRepository(tempDir());
   assert.equal(repo.lastSyncedAt(), null);

@@ -24,7 +24,8 @@ config/        challenge.json – declarative challenge definitions.
 - **Injected clock**: nothing outside the composition roots (`app.ts`, `commands/*-commands.ts`, `server/main.ts`) reads `Date.now`.
   `RateLimitGuard`, `StravaClient`, the services and `parseQuarter`/`listQuarters` receive time as a parameter, so tests control it.
 - **Local store as source of truth**: the UI never calls Strava directly, so page views cost 0 API requests.
-- **Incremental, per-app budget-aware sync**: see README "Rate limits".
+- **Incremental, per-app budget-aware sync**: see README "Rate limits". Once a day per member a full refresh of the
+  current quarter replaces the stored activities (`ActivityRepository.replaceRange`), so Strava edits and deletions show up.
 - **Idempotent**: activities are upserted by id; re-syncing never double counts.
 - **Static hosting**: `exportStatic` renders every quarter/challenge view to JSON; the UI falls back from
   `api/...` to `data/...` when no server answers. Credentials and tokens are one `StateBundle`

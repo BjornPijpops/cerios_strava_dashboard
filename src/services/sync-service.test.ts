@@ -26,10 +26,80 @@ test('backfills history when the stored sync does not cover the tracked range', 
   const calls: number[] = [];
   const source: ActivitySource = { fetchActivities: async (_id, after) => (calls.push(after), []) };
   const legacy = { at: '2026-11-19T10:00:00.000Z', from: null };
-  const covered = { at: '2026-11-19T10:00:00.000Z', from: '2026-07-01T00:00:00.000Z' };
+  const covered = { at: '2026-11-19T10:00:00.000Z', from: '2026-07-01T00:00:00.000Z', fullAt: '2026-11-20T09:00:00.000Z' };
   await new SyncService(source, memoryRepo({ 1: legacy, 2: covered }), config, () => NOW).syncAll();
   assert.equal(calls[0], Date.parse('2026-07-01T00:00:00Z') / 1000);
   assert.equal(calls[1], (Date.parse(covered.at) - 24 * 3600 * 1000) / 1000);
+});
+
+const stravaActivity = (id: number, athleteId: number, startDate: string, name = `a${id}`) => ({ id, athleteId, startDate, name }) as never;
+const cfg1 = { firstQuarter: '2026-Q1', members: [{ athleteId: 1, name: 'A' }] };
+const syncedAt = (iso: string) => ({ at: iso, from: '2026-01-01T00:00:00.000Z' });
+
+test('the daily refresh fetches the whole current quarter, then later runs are incremental again', async () => {
+  const calls: number[] = [];
+  const source: ActivitySource = { fetchActivities: async (_id, after) => (calls.push(after), []) };
+  const repo = memoryRepo({ 1: syncedAt('2026-11-19T10:00:00.000Z') });
+  let now = NOW;
+  const svc = new SyncService(source, repo, cfg1, () => now);
+  await svc.syncAll();
+  now += 30 * 60 * 1000;
+  await svc.syncAll();
+  now += 24 * 3600 * 1000;
+  await svc.syncAll();
+  const quarterStart = Date.parse('2026-10-01T00:00:00Z') / 1000;
+  assert.deepEqual(calls.map((c) => c === quarterStart), [true, false, true]);
+});
+
+test('the daily refresh corrects edited activities and drops deleted ones, only for that member and quarter', async () => {
+  const repo = memoryRepo({ 1: syncedAt('2026-11-19T10:00:00.000Z') });
+  repo.upsertMany([
+    stravaActivity(1, 1, '2026-11-02T08:00:00Z', 'wrong'),
+    stravaActivity(2, 1, '2026-11-03T08:00:00Z', 'deleted in strava'),
+    stravaActivity(3, 1, '2026-08-03T08:00:00Z', 'earlier quarter'),
+    stravaActivity(4, 2, '2026-11-03T08:00:00Z', 'someone else'),
+  ]);
+  const source: ActivitySource = { fetchActivities: async () => [stravaActivity(1, 1, '2026-11-02T08:00:00Z', 'fixed')] };
+  await new SyncService(source, repo, cfg1, () => NOW).syncAll();
+  assert.deepEqual(repo.stored.map((a) => a.name).sort(), ['earlier quarter', 'fixed', 'someone else']);
+});
+
+test('an incremental run never removes stored activities', async () => {
+  const repo = memoryRepo({ 1: { ...syncedAt('2026-11-20T09:00:00.000Z'), fullAt: '2026-11-20T09:00:00.000Z' } });
+  repo.upsertMany([stravaActivity(2, 1, '2026-11-03T08:00:00Z')]);
+  const source: ActivitySource = { fetchActivities: async () => [] };
+  await new SyncService(source, repo, cfg1, () => NOW).syncAll();
+  assert.equal(repo.stored.length, 1);
+});
+
+test('a failed refresh keeps the stored activities and retries on the next run', async () => {
+  const repo = memoryRepo({ 1: syncedAt('2026-11-19T10:00:00.000Z') });
+  repo.upsertMany([stravaActivity(2, 1, '2026-11-03T08:00:00Z')]);
+  const broken: ActivitySource = { fetchActivities: async () => { throw new RateLimitError('limit'); } };
+  const results = await new SyncService(broken, repo, cfg1, () => NOW).syncAll();
+  assert.ok(results[0].error);
+  assert.equal(repo.stored.length, 1);
+  assert.equal(repo.getSync(1)?.fullAt, undefined);
+});
+
+test('in the first week of a quarter the refresh also covers the previous quarter', async () => {
+  const calls: number[] = [];
+  const source: ActivitySource = { fetchActivities: async (_id, after) => (calls.push(after), []) };
+  const early = Date.parse('2026-10-04T10:00:00Z');
+  await new SyncService(source, memoryRepo({ 1: syncedAt('2026-10-03T10:00:00.000Z') }), cfg1, () => early).syncAll();
+  const later = Date.parse('2026-10-09T10:00:00Z');
+  await new SyncService(source, memoryRepo({ 1: syncedAt('2026-10-08T10:00:00.000Z') }), cfg1, () => later).syncAll();
+  assert.deepEqual(calls, [Date.parse('2026-07-01T00:00:00Z') / 1000, Date.parse('2026-10-01T00:00:00Z') / 1000]);
+});
+
+test('the refresh never reaches before a member joined', async () => {
+  const calls: number[] = [];
+  const source: ActivitySource = { fetchActivities: async (_id, after) => (calls.push(after), []) };
+  const cfg = { firstQuarter: '2026-Q1', members: [{ athleteId: 1, name: 'A', joinedQuarter: '2026-Q4' }] };
+  const early = Date.parse('2026-10-04T10:00:00Z');
+  const repo = memoryRepo({ 1: { at: '2026-10-03T10:00:00.000Z', from: '2026-10-01T00:00:00.000Z' } });
+  await new SyncService(source, repo, cfg, () => early).syncAll();
+  assert.deepEqual(calls, [Date.parse('2026-10-01T00:00:00Z') / 1000]);
 });
 
 test('a rate-limited member does not stop the others (each member has their own Strava app)', async () => {
