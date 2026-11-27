@@ -76,7 +76,10 @@ each member has an independent budget and the members never compete for it. A no
 requests per member, so the limits are practically never reached. Safeguards, in case they are:
 1. `RateLimitRegistry` keeps one `RateLimitGuard` per app (client id). A guard reads the headers and stops
    that app's requests when fewer than 5 remain. A limited member is skipped; the others still sync.
-2. Syncs are incremental (last sync − 1 day), 200 activities per request.
+2. Syncs are incremental (last sync − 1 day), 200 activities per request. Once a day per member the whole current
+   quarter is fetched again and replaces the stored copy, so edits and deletions made in Strava are corrected
+   (in the first 7 days of a quarter the previous quarter is refreshed too). Anything older than that is not
+   re-checked, and nothing here touches tokens.
 3. The web server syncs at most once per `SYNC_TTL_MINUTES` and never concurrently.
 4. Per member a sync costs about one request per ~200 new activities plus one token refresh every 6 hours.
    The first sync of a long history costs a bit more, which is still far below the limit.

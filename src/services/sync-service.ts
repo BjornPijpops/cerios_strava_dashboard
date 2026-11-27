@@ -1,4 +1,4 @@
-import { quarterBounds, trackingStartMs } from '../domain/quarters';
+import { quarterBounds, quarterIdOf, trackingStartMs } from '../domain/quarters';
 import { ChallengeFile, Member } from '../domain/types';
 import { ActivityRepository } from '../infra/activity-repository';
 import { ActivitySource } from '../strava/client';
@@ -6,6 +6,9 @@ import { RateLimitError } from '../strava/rate-limit';
 
 const DAY_MS = 24 * 3600 * 1000;
 const OVERLAP_MS = DAY_MS;
+const FULL_REFRESH_INTERVAL_MS = DAY_MS;
+/** Edits made shortly after a quarter ends still belong to that quarter, so it is refreshed for a week. */
+const PREVIOUS_QUARTER_GRACE_MS = 7 * DAY_MS;
 
 export interface MemberSyncResult {
   athleteId: number;
@@ -14,8 +17,10 @@ export interface MemberSyncResult {
 }
 
 /**
- * Incrementally pulls activities for every member. Only fetches what is new since the last
- * successful sync (with a 1-day overlap to catch late uploads/edits), keeping API usage minimal.
+ * Pulls activities for every member. Most runs are incremental: only what is new since the last
+ * successful sync (with a 1-day overlap to catch late uploads), keeping API usage minimal.
+ * Once a day per member the current quarter is fetched in full and replaces the stored copy, which also
+ * picks up edits and deletions made in Strava (the previous quarter is included in its first week).
  * If the tracked range grew (e.g. an earlier `firstQuarter`), the missing history is backfilled once.
  */
 export class SyncService {
@@ -66,13 +71,40 @@ export class SyncService {
     const startedAt = this.now();
     const last = this.repo.getSync(athleteId);
     const coversRange = !!last?.from && Date.parse(last.from) <= trackFromMs;
-    const fromMs = last && coversRange ? Math.max(trackFromMs, Date.parse(last.at) - OVERLAP_MS) : trackFromMs;
     const toMs = Math.min(startedAt, windowEndMs);
+
+    // A "replace" fetch is complete for its range, so it may also drop activities deleted or moved in Strava.
+    let fromMs = trackFromMs;
+    let replace = true;
+    if (last && coversRange) {
+      const refreshFromMs = Math.max(trackFromMs, this.refreshStartMs(startedAt));
+      const refreshDue = !last.fullAt || startedAt - Date.parse(last.fullAt) >= FULL_REFRESH_INTERVAL_MS;
+      if (refreshDue && refreshFromMs < toMs) {
+        fromMs = refreshFromMs;
+      } else {
+        fromMs = Math.max(trackFromMs, Date.parse(last.at) - OVERLAP_MS);
+        replace = false;
+      }
+    }
     if (fromMs >= toMs) return 0;
 
-    const activities = await this.source.fetchActivities(athleteId, Math.floor(fromMs / 1000), Math.ceil(toMs / 1000));
-    this.repo.upsertMany(activities);
-    this.repo.setSync(athleteId, { at: new Date(startedAt).toISOString(), from: new Date(trackFromMs).toISOString() });
+    const afterSec = Math.floor(fromMs / 1000);
+    const beforeSec = Math.ceil(toMs / 1000);
+    const activities = await this.source.fetchActivities(athleteId, afterSec, beforeSec);
+    if (replace) this.repo.replaceRange(athleteId, afterSec, beforeSec, activities);
+    else this.repo.upsertMany(activities);
+    this.repo.setSync(athleteId, {
+      at: new Date(startedAt).toISOString(),
+      from: new Date(trackFromMs).toISOString(),
+      ...(replace ? { fullAt: new Date(startedAt).toISOString() } : {}),
+    });
     return activities.length;
+  }
+
+  /** Start of the range a daily refresh covers: the current quarter, plus the previous one right after a quarter change. */
+  private refreshStartMs(nowMs: number): number {
+    const current = new Date(Date.parse(`${quarterBounds(quarterIdOf(nowMs)).start}T00:00:00Z`));
+    if (nowMs - current.getTime() >= PREVIOUS_QUARTER_GRACE_MS) return current.getTime();
+    return Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - 3, 1);
   }
 }
