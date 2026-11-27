@@ -14,7 +14,9 @@
     { "athleteId": 105206980, "name": "Sofie" },
     { "athleteId": 74225594, "name": "Tom" },
     { "athleteId": 202935865, "name": "Jarno" },
-    { "athleteId": 200211187, "name": "Kenan" }
+    { "athleteId": 200211187, "name": "Kenan" },
+    { "athleteId": 1901119995, "name": "Floris", "joinedQuarter": "2026-Q4" },
+    { "athleteId": 22050833, "name": "Christophe", "joinedQuarter": "2026-Q4" }
   ],
   "challenges": [
     { "id": "group", "name": "Group goal", "metric": "movingTime", "sportTypes": "*", "goal": 700, "goalByQuarter": { "2026-Q1": 600, "2026-Q2": 650, "2026-Q3": 700 } },
